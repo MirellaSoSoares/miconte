@@ -30,7 +30,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     // Validação do domínio institucional
     if (!str_ends_with($email, "@aluno.sp.gov.br")) {
-        die("<p style='color:red; text-align:center;'>É necessário usar o e-mail institucional para login</p>");
+        die("<p class='mensagem-erro'>É necessário usar o e-mail institucional para login</p>");
     }
 
     try {
@@ -41,14 +41,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         while (true) {
             try {
                 $stmt->execute([$nome, $email, $senha, $tipo]);
-                echo "<p style='color:green; text-align:center;'>Usuário cadastrado com sucesso!</p>";
+                echo "<p class='mensagem-sucesso'>Usuário cadastrado com sucesso!</p>";
                 break;
             } catch (PDOException $e) {
                 $attempt++;
                 $logLine = date('c') . " | cadastro.php | attempt={$attempt} | " . $e->getMessage() . PHP_EOL;
                 @file_put_contents(__DIR__ . '/db_errors.log', $logLine, FILE_APPEND);
                 if ($attempt >= $maxAttempts || stripos($e->getMessage(), 'database is locked') === false) {
-                    echo "<p style='color:red; text-align:center;'>Erro ao cadastrar: " . htmlspecialchars($e->getMessage()) . "</p>";
+                    echo "<p class='mensagem-erro'>Erro ao cadastrar: " . htmlspecialchars($e->getMessage()) . "</p>";
                     break;
                 }
                 usleep(200000 * $attempt);
@@ -57,7 +57,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } catch (Exception $e) {
         $logLine = date('c') . " | cadastro.php | exception | " . $e->getMessage() . PHP_EOL;
         @file_put_contents(__DIR__ . '/db_errors.log', $logLine, FILE_APPEND);
-        echo "<p style='color:red; text-align:center;'>Erro ao cadastrar: " . htmlspecialchars($e->getMessage()) . "</p>";
+        echo "<p class='mensagem-erro'>Erro ao cadastrar: " . htmlspecialchars($e->getMessage()) . "</p>";
     }
 }
 ?>

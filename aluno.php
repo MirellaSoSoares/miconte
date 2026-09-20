@@ -45,7 +45,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
             $html .= '    <h3>' . htmlspecialchars($livro['titulo'] ?? 'Livro') . '</h3>';
             $html .= '    <p>' . htmlspecialchars($livro['autor'] ?? '') . '</p>';
             $html .= '    <div class="book-actions">';
-            $html .= '      <form method="POST" action="sinopse.php?tab=alugados" style="display:inline; margin-left:auto;">';
+            $html .= '      <form method="POST" action="sinopse.php?tab=alugados" class="inline-form align-end">';
             $html .= '        <input type="hidden" name="id" value="' . ($livro['livro_id'] ?? $livro['id'] ?? 0) . '">';
             $html .= '        <button type="submit" class="btn btn-primary btn-details">Detalhes</button>';
             $html .= '      </form>';
@@ -68,468 +68,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meu Perfil</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <style>
-        * { box-sizing: border-box; }
-
-        html, body {
-            min-height: 100%;
-            height: auto;
-        }
-
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f5f5dc;
-            color: #2d2d2d;
-            display: flex;
-            flex-direction: column;
-            overflow-x: hidden;
-            overflow-y: auto;
-        }
-
-        .app-shell {
-            display: flex;
-            min-height: calc(100vh - 52px);
-            flex: 1;
-        }
-
-        .sidebar {
-            width: 240px;
-            background: #722f37;
-            border-right: 2px solid #e5a7a1;
-            padding: 0;
-        }
-
-        .sidebar-header {
-            padding: 14px 16px 10px;
-            border-bottom: 1px solid rgba(255,255,255,0.25);
-        }
-
-        .sidebar-header h3 {
-            margin: 0;
-            color: #fff;
-            font-size: 1.8rem;
-            text-align: center;
-            font-weight: 700;
-        }
-
-        .nav {
-            display: flex;
-            flex-direction: column;
-            padding-top: 6px;
-        }
-
-        .nav-item {
-            background: transparent;
-            border: none;
-            color: #fff;
-            width: 100%;
-            text-align: left;
-            padding: 12px 16px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            transition: 0.2s ease;
-        }
-
-        .nav-item:hover,
-        .nav-item.active {
-            background: rgba(255,255,255,0.08);
-            border-left: 4px solid #f3cbc0;
-            padding-left: 12px;
-        }
-
-        .nav-item.outline {
-            margin-top: 8px;
-        }
-
-        .page-header {
-            background: #722f37;
-            color: white;
-            text-align: center;
-            padding: 14px 16px;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
-        }
-
-        .page-header h2 {
-            margin: 0;
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-
-        .content {
-            flex: 1;
-            padding: 16px 24px 20px;
-            background: #f5f5dc;
-            display: flex;
-            justify-content: center;
-            overflow-y: auto;
-            min-height: 0;
-        }
-
-        .content .panel {
-            min-height: 100%;
-        }
-
-        .panel {
-            display: none;
-            width: 100%;
-            max-width: 820px;
-        }
-
-        .panel.active {
-            display: block;
-        }
-
-        .title-bar {
-            margin: 0 0 14px;
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: #2d2d2d;
-        }
-
-        .book-list {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            margin: 18px auto 0;
-            width: 100%;
-            max-width: 820px;
-            align-items: center;
-        }
-
-        .book-card {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            width: 100%;
-            max-width: 720px;
-            background: rgba(145, 138, 112, 0.92);
-            border-radius: 8px;
-            padding: 14px 16px 14px 16px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            position: relative;
-        }
-
-        .book-cover {
-            width: 90px;
-            height: 118px;
-            border-radius: 6px;
-            overflow: hidden;
-            flex-shrink: 0;
-            background: #ddd;
-        }
-
-        .book-cover img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-
-        .book-info {
-            flex: 1;
-            min-width: 0;
-            padding-right: 42px;
-        }
-
-        .book-info h3 {
-            margin: 0 0 6px;
-            color: #fff;
-            font-size: 1.6rem;
-            line-height: 1.1;
-        }
-
-        .book-info p {
-            margin: 0 0 10px;
-            color: #111;
-            font-size: 0.95rem;
-        }
-
-        .book-actions {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-            width: 100%;
-        }
-
-        .btn-details {
-            margin-left: auto;
-            align-self: flex-end;
-        }
-
-        .favorites-actions {
-            justify-content: flex-end;
-            margin-top: 8px;
-        }
-
-        .btn {
-            border: none;
-            border-radius: 5px;
-            padding: 8px 12px;
-            font-size: 0.8rem;
-            cursor: pointer;
-            transition: 0.2s ease;
-        }
-
-        .btn-primary,
-        .btn-secondary {
-            background: #746f5c;
-            color: white;
-        }
-
-        .btn-secondary {
-            background: #746f5c;
-            color: white;
-        }
-
-        .btn:hover {
-            opacity: 0.96;
-        }
-
-        .favorite-toggle {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            border: none;
-            background: transparent;
-            color: #f3d55f;
-            font-size: 1.9rem;
-            line-height: 1;
-            cursor: pointer;
-            padding: 0;
-            margin: 0;
-            z-index: 2;
-        }
-
-        .favorite-toggle.is-favorited {
-            color: #ffd749;
-            text-shadow: 0 0 8px rgba(255, 215, 73, 0.8);
-        }
-
-        .empty-state {
-            max-width: 700px;
-            background: rgba(255,255,255,0.15);
-            border-radius: 10px;
-            padding: 18px;
-            color: #444;
-            font-size: 1rem;
-        }
-
-        .profile-box {
-            max-width: 760px;
-            background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06));
-            border: 1px solid rgba(114, 47, 55, 0.15);
-            border-radius: 18px;
-            padding: 28px 26px;
-            color: #2b2b2b;
-            box-shadow: 0 10px 24px rgba(60, 42, 32, 0.08);
-        }
-
-        .profile-header {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin-bottom: 22px;
-            padding-bottom: 18px;
-            border-bottom: 1px solid rgba(114, 47, 55, 0.15);
-        }
-
-        .profile-avatar {
-            width: 72px;
-            height: 72px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #722f37, #9d5a4e);
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.8rem;
-            font-weight: bold;
-            box-shadow: 0 8px 18px rgba(114, 47, 55, 0.25);
-        }
-
-        .profile-name {
-            margin: 0;
-            font-size: 1.6rem;
-            color: #2e2e2e;
-        }
-
-        .profile-role {
-            margin: 4px 0 0;
-            color: #5d5d5d;
-            font-size: 0.95rem;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-        }
-
-        .profile-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 18px;
-        }
-
-        .profile-card {
-            background: rgba(255,255,255,0.22);
-            border: 1px solid rgba(114, 47, 55, 0.08);
-            border-radius: 12px;
-            padding: 16px 18px;
-        }
-
-        .profile-label {
-            display: block;
-            font-size: 0.8rem;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: #6d5f42;
-            margin-bottom: 8px;
-        }
-
-        .profile-value {
-            margin: 0;
-            font-size: 1rem;
-            color: #202020;
-            word-break: break-word;
-        }
-
-        .confirmation-overlay,
-        .success-overlay {
-            position: fixed;
-            inset: 0;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0, 0, 0, 0.38);
-            z-index: 3000;
-        }
-
-        #calendarioModal {
-            transition: transform 0.2s ease, opacity 0.2s ease;
-            opacity: 1;
-        }
-
-        .disponibilidade-mensagem {
-            display: none;
-            margin: 10px 0 12px;
-            font-weight: 700;
-            color: #b00020;
-            text-align: left;
-            background: #fff1f3;
-            border: 1px solid rgba(176, 0, 32, 0.2);
-            border-radius: 8px;
-            padding: 10px 12px;
-        }
-
-        .disponibilidade-estoque {
-            display: none;
-            margin: 10px 0 12px;
-            font-weight: 700;
-            color: #1e7e34;
-            text-align: left;
-            background: #edf9f0;
-            border: 1px solid rgba(30, 126, 52, 0.2);
-            border-radius: 8px;
-            padding: 10px 12px;
-        }
-
-        .confirmation-box,
-        .success-box {
-            width: min(420px, calc(100% - 32px));
-            background: rgba(255, 255, 255, 0.96);
-            border: 1px solid rgba(114, 47, 55, 0.25);
-            border-radius: 12px;
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
-            padding: 26px 22px;
-            text-align: center;
-        }
-
-        .confirmation-box h3,
-        .success-box h3 {
-            margin: 0 0 18px;
-            font-size: 1.1rem;
-            color: #2d2d2d;
-        }
-
-        .confirmation-actions,
-        .success-actions {
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-            margin-top: 18px;
-        }
-
-        .confirmation-box button,
-        .success-box button {
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 700;
-            padding: 10px 18px;
-            min-width: 90px;
-        }
-
-        .confirm-yes {
-            background: #722f37;
-            color: white;
-        }
-
-        .confirm-no {
-            background: #d9d9d9;
-            color: #333;
-        }
-
-        .success-icon {
-            font-size: 52px;
-            color: #2e8b57;
-            margin: 8px 0 12px;
-        }
-
-        footer {
-            background: #722f37;
-            color: white;
-            text-align: center;
-            padding: 10px;
-            font-size: 0.9rem;
-        }
-
-        @media (max-width: 900px) {
-            .app-shell {
-                flex-direction: column;
-                min-height: auto;
-            }
-
-            .sidebar {
-                width: 100%;
-            }
-
-            .content {
-                padding: 18px 20px;
-                overflow: visible;
-                min-height: auto;
-            }
-
-            .book-card {
-                max-width: 100%;
-            }
-
-            .book-actions {
-                align-items: stretch;
-            }
-
-            .book-actions > * {
-                width: auto;
-                flex: 1 1 auto;
-            }
-
-            #calendarioModal {
-                width: min(90vw, 420px);
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="css/aluno.css">
 </head>
 <body>
 
@@ -587,7 +126,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
                             <div class="book-actions">
                                 <button type="button" class="favorite-toggle" data-id="<?= $livro['id'] ?>" aria-label="Adicionar aos favoritos">☆</button>
 
-                                <form method="POST" action="sinopse.php?tab=home" style="display:inline;">
+                                <form method="POST" action="sinopse.php?tab=home" class="inline-form">
                                     <input type="hidden" name="id" value="<?= $livro['id'] ?>">
                                     <input type="hidden" name="tab" value="home">
                                     <button type="submit" class="btn btn-secondary">Sinopse</button>
@@ -619,11 +158,17 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
                                 <p><?= htmlspecialchars($livro['autor'] ?? '') ?></p>
 
                                 <div class="book-actions">
-                                    <form method="POST" action="sinopse.php?tab=alugados" style="display:inline; margin-left:auto;">
-                                        <input type="hidden" name="id" value="<?= $livro['livro_id'] ?? $livro['id'] ?? 0 ?>">
-                                        <input type="hidden" name="tab" value="alugados">
-                                        <button type="submit" class="btn btn-primary btn-details">Detalhes</button>
-                                    </form>
+                                    <button
+                                        type="button"
+                                        class="btn btn-primary btn-details"
+                                        data-reserva-id="<?= (int) ($livro['id'] ?? 0) ?>"
+                                        data-livro-id="<?= (int) ($livro['livro_id'] ?? 0) ?>"
+                                        data-livro-titulo="<?= htmlspecialchars($livro['titulo'] ?? 'Livro', ENT_QUOTES, 'UTF-8') ?>"
+                                        data-data="<?= htmlspecialchars($livro['data'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                                        data-hora="<?= htmlspecialchars($livro['hora'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                                        onclick="abrirDetalhesReserva(this)">
+                                        Detalhes
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -670,17 +215,17 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
     </main>
 </div>
 
-<div id="calendarioModal" style="display:none; position:fixed; top:0; right:0; width:min(420px, 90vw); height:100%; background:#fff; box-shadow:-2px 0 8px rgba(0,0,0,0.3); z-index:1000; box-sizing:border-box;">
-    <div style="padding:24px;">
-        <span class="close" onclick="fecharCalendario()" style="float:right; font-size:24px; cursor:pointer;">&times;</span>
+<div id="calendarioModal" class="calendario-modal">
+    <div class="calendario-modal-body">
+        <span class="close calendario-close" onclick="fecharCalendario()">&times;</span>
         <h3>Selecione a data e horário</h3>
 
         <div id="disponibilidadeMensagem" class="disponibilidade-mensagem" aria-live="polite"></div>
         <div id="disponibilidadeEstoque" class="disponibilidade-estoque" aria-live="polite"></div>
 
-        <input type="text" id="data" name="data" required style="width:100%; margin:12px 0; padding:10px;">
+        <input type="text" id="data" name="data" required class="campo-data-hora">
 
-        <select id="hora" name="hora" required style="width:100%; margin-bottom:12px; padding:10px;">
+        <select id="hora" name="hora" required class="campo-data-hora select-hora">
             <?php
             $inicio = strtotime("09:20");
             $fim = strtotime("16:30");
@@ -700,6 +245,27 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
         <div class="confirmation-actions">
             <button class="confirm-yes" onclick="confirmarReserva()">Sim</button>
             <button class="confirm-no" onclick="fecharModalConfirmacao()">Não</button>
+        </div>
+    </div>
+</div>
+
+<div id="detalhesReservaModal" class="modal-details">
+    <div class="modal-details-box">
+        <button type="button" class="modal-details-close" onclick="fecharDetalhesReserva()" aria-label="Fechar detalhes">←</button>
+        <h3>Reserva do livro</h3>
+        <div class="modal-details-content" id="detalhesReservaConteudo"></div>
+        <div class="modal-details-actions">
+            <button type="button" class="cancel-btn" onclick="abrirConfirmacaoCancelamento()">Cancelar reserva</button>
+        </div>
+    </div>
+</div>
+
+<div id="cancelarReservaModal" class="confirmation-overlay">
+    <div class="confirmation-box">
+        <h3>Deseja confirmar o cancelamento?</h3>
+        <div class="confirmation-actions">
+            <button class="confirm-yes" onclick="cancelarReserva()">Sim</button>
+            <button class="confirm-no" onclick="fecharModalCancelamento()">Não</button>
         </div>
     </div>
 </div>
@@ -767,7 +333,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
 
                     <div class="book-actions favorites-actions">
                         <button type="button" class="favorite-toggle is-favorited" data-id="${livro.id}" aria-label="Remover dos favoritos">★</button>
-                        <form method="POST" action="sinopse.php?tab=favoritos" style="display:inline; margin-left:0;">
+                        <form method="POST" action="sinopse.php?tab=favoritos" class="inline-form no-margin-left">
                             <input type="hidden" name="id" value="${livro.id}">
                             <input type="hidden" name="tab" value="favoritos">
                             <button type="submit" class="btn btn-primary btn-details">Detalhes</button>
@@ -878,6 +444,35 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
         } catch (error) {
             console.error('Erro ao recarregar livros alocados:', error);
         }
+    }
+
+    function abrirDetalhesReserva(botao) {
+        const reservaId = Number(botao.dataset.reservaId || 0);
+        const livroId = Number(botao.dataset.livroId || 0);
+        const titulo = botao.dataset.livroTitulo || 'Livro';
+        const data = botao.dataset.data || '';
+        const hora = botao.dataset.hora || '';
+
+        const conteudo = document.getElementById('detalhesReservaConteudo');
+        conteudo.innerHTML = '<strong>Livro:</strong> ' + titulo + '<br>' +
+            '<strong>Data:</strong> ' + data + '<br>' +
+            '<strong>Horário:</strong> ' + hora;
+
+        document.getElementById('detalhesReservaModal').dataset.reservaId = reservaId;
+        document.getElementById('detalhesReservaModal').dataset.livroId = livroId;
+        document.getElementById('detalhesReservaModal').style.display = 'flex';
+    }
+
+    function fecharDetalhesReserva() {
+        document.getElementById('detalhesReservaModal').style.display = 'none';
+    }
+
+    function abrirConfirmacaoCancelamento() {
+        document.getElementById('cancelarReservaModal').style.display = 'flex';
+    }
+
+    function fecharModalCancelamento() {
+        document.getElementById('cancelarReservaModal').style.display = 'none';
     }
 
     function ativarAba(tabName) {
@@ -1012,8 +607,51 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
         });
     }
 
+    function cancelarReserva() {
+        const modal = document.getElementById('detalhesReservaModal');
+        const reservaId = Number(modal.dataset.reservaId || 0);
+        const livroId = Number(modal.dataset.livroId || 0);
+
+        if (!reservaId) {
+            alert('Não foi possível identificar a reserva para cancelar.');
+            return;
+        }
+
+        fetch('confirmar.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'action=cancel&reserva_id=' + reservaId + '&livro_id=' + livroId
+        })
+        .then(response => response.text())
+        .then(result => {
+            const mensagem = result.trim();
+            fecharModalCancelamento();
+            fecharDetalhesReserva();
+
+            if (mensagem === 'OK') {
+                const livroAtual = livrosData.find(item => Number(item.id) === livroId);
+                if (livroAtual) {
+                    livroAtual.quantidade = Number(livroAtual.quantidade || 0) + 1;
+                }
+                recarregarLivrosAlugados();
+                document.getElementById('modalSucesso').querySelector('h3').textContent = 'Reserva cancelada!';
+                document.getElementById('modalSucesso').querySelector('p').textContent = 'Seu livro voltou ao estoque e a reserva foi removida.';
+                document.getElementById('modalSucesso').style.display = 'flex';
+                return;
+            }
+
+            alert(mensagem || 'Não foi possível cancelar esta reserva.');
+        })
+        .catch(() => {
+            alert('Erro de conexão. Tente novamente em alguns instantes.');
+        });
+    }
+
     function fecharModalSucesso() {
-        document.getElementById('modalSucesso').style.display = 'none';
+        const modalSucesso = document.getElementById('modalSucesso');
+        modalSucesso.querySelector('h3').textContent = 'Reserva concluída!';
+        modalSucesso.querySelector('p').textContent = 'Seu processo foi finalizado com sucesso.';
+        modalSucesso.style.display = 'none';
     }
 </script>
 
