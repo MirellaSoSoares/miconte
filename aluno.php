@@ -28,6 +28,37 @@ try {
 } catch (Exception $e) {
     $livrosAlugados = [];
 }
+
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
+    $html = '<h2 class="title-bar">Livros alocados</h2>';
+
+    if (empty($livrosAlugados)) {
+        $html .= '<div class="empty-state">Você ainda não reservou nenhum livro.</div>';
+    } else {
+        $html .= '<div class="book-list">';
+        foreach ($livrosAlugados as $livro) {
+            $html .= '<div class="book-card">';
+            $html .= '  <div class="book-cover">';
+            $html .= '    <img src="imagens/' . htmlspecialchars($livro['capa'] ?? 'default.png') . '" alt="' . htmlspecialchars($livro['titulo'] ?? 'Livro') . '">';
+            $html .= '  </div>';
+            $html .= '  <div class="book-info">';
+            $html .= '    <h3>' . htmlspecialchars($livro['titulo'] ?? 'Livro') . '</h3>';
+            $html .= '    <p>' . htmlspecialchars($livro['autor'] ?? '') . '</p>';
+            $html .= '    <div class="book-actions">';
+            $html .= '      <form method="POST" action="sinopse.php?tab=alugados" style="display:inline; margin-left:auto;">';
+            $html .= '        <input type="hidden" name="id" value="' . ($livro['livro_id'] ?? $livro['id'] ?? 0) . '">';
+            $html .= '        <button type="submit" class="btn btn-primary btn-details">Detalhes</button>';
+            $html .= '      </form>';
+            $html .= '    </div>';
+            $html .= '  </div>';
+            $html .= '</div>';
+        }
+        $html .= '</div>';
+    }
+
+    echo $html;
+    exit;
+}
 ?>
 
 <!DOCTYPE html>
@@ -376,6 +407,35 @@ try {
             z-index: 3000;
         }
 
+        #calendarioModal {
+            transition: transform 0.2s ease, opacity 0.2s ease;
+            opacity: 1;
+        }
+
+        .disponibilidade-mensagem {
+            display: none;
+            margin: 10px 0 12px;
+            font-weight: 700;
+            color: #b00020;
+            text-align: left;
+            background: #fff1f3;
+            border: 1px solid rgba(176, 0, 32, 0.2);
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+
+        .disponibilidade-estoque {
+            display: none;
+            margin: 10px 0 12px;
+            font-weight: 700;
+            color: #1e7e34;
+            text-align: left;
+            background: #edf9f0;
+            border: 1px solid rgba(30, 126, 52, 0.2);
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+
         .confirmation-box,
         .success-box {
             width: min(420px, calc(100% - 32px));
@@ -527,8 +587,9 @@ try {
                             <div class="book-actions">
                                 <button type="button" class="favorite-toggle" data-id="<?= $livro['id'] ?>" aria-label="Adicionar aos favoritos">☆</button>
 
-                                <form method="POST" action="sinopse.php" style="display:inline;">
+                                <form method="POST" action="sinopse.php?tab=home" style="display:inline;">
                                     <input type="hidden" name="id" value="<?= $livro['id'] ?>">
+                                    <input type="hidden" name="tab" value="home">
                                     <button type="submit" class="btn btn-secondary">Sinopse</button>
                                 </form>
 
@@ -558,8 +619,9 @@ try {
                                 <p><?= htmlspecialchars($livro['autor'] ?? '') ?></p>
 
                                 <div class="book-actions">
-                                    <form method="POST" action="sinopse.php" style="display:inline; margin-left:auto;">
-                                        <input type="hidden" name="id" value="<?= $livro['id'] ?? 0 ?>">
+                                    <form method="POST" action="sinopse.php?tab=alugados" style="display:inline; margin-left:auto;">
+                                        <input type="hidden" name="id" value="<?= $livro['livro_id'] ?? $livro['id'] ?? 0 ?>">
+                                        <input type="hidden" name="tab" value="alugados">
                                         <button type="submit" class="btn btn-primary btn-details">Detalhes</button>
                                     </form>
                                 </div>
@@ -612,6 +674,9 @@ try {
     <div style="padding:24px;">
         <span class="close" onclick="fecharCalendario()" style="float:right; font-size:24px; cursor:pointer;">&times;</span>
         <h3>Selecione a data e horário</h3>
+
+        <div id="disponibilidadeMensagem" class="disponibilidade-mensagem" aria-live="polite"></div>
+        <div id="disponibilidadeEstoque" class="disponibilidade-estoque" aria-live="polite"></div>
 
         <input type="text" id="data" name="data" required style="width:100%; margin:12px 0; padding:10px;">
 
@@ -702,8 +767,9 @@ try {
 
                     <div class="book-actions favorites-actions">
                         <button type="button" class="favorite-toggle is-favorited" data-id="${livro.id}" aria-label="Remover dos favoritos">★</button>
-                        <form method="POST" action="sinopse.php" style="display:inline; margin-left:0;">
+                        <form method="POST" action="sinopse.php?tab=favoritos" style="display:inline; margin-left:0;">
                             <input type="hidden" name="id" value="${livro.id}">
+                            <input type="hidden" name="tab" value="favoritos">
                             <button type="submit" class="btn btn-primary btn-details">Detalhes</button>
                         </form>
                     </div>
@@ -717,17 +783,7 @@ try {
         if (navItem) {
             const panelName = navItem.dataset.panel;
             if (!panelName) return;
-
-            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-            navItem.classList.add('active');
-
-            document.querySelectorAll('.panel').forEach(panel => {
-                panel.classList.toggle('active', panel.id === panelName + '-panel');
-            });
-
-            if (panelName === 'favoritos') {
-                renderFavoritos();
-            }
+            ativarAba(panelName);
         }
 
         if (event.target.closest('.favorite-toggle')) {
@@ -769,16 +825,98 @@ try {
         return calendarioPicker;
     }
 
+    function atualizarStatusDisponibilidade(livro) {
+        const mensagem = document.getElementById('disponibilidadeMensagem');
+        const estoque = document.getElementById('disponibilidadeEstoque');
+        const inputData = document.getElementById('data');
+        const inputHora = document.getElementById('hora');
+        const confirmarBtn = document.querySelector('#calendarioModal button');
+
+        if (!livro) {
+            mensagem.textContent = 'Não foi possível identificar esse livro no momento.';
+            mensagem.style.display = 'block';
+            mensagem.style.color = '#b00020';
+            estoque.style.display = 'none';
+            if (inputData) inputData.disabled = true;
+            if (inputHora) inputHora.disabled = true;
+            if (confirmarBtn) confirmarBtn.disabled = true;
+            return;
+        }
+
+        const quantidade = Number(livro.quantidade || 0);
+
+        if (quantidade <= 0) {
+            mensagem.textContent = 'Que pena! Este exemplar acabou. Tente outro livro ou volte mais tarde.';
+            mensagem.style.display = 'block';
+            mensagem.style.color = '#b00020';
+            estoque.textContent = 'Quantidade disponível: 0';
+            estoque.style.display = 'block';
+            estoque.style.color = '#b00020';
+            if (inputData) inputData.disabled = true;
+            if (inputHora) inputHora.disabled = true;
+            if (confirmarBtn) confirmarBtn.disabled = true;
+            return;
+        }
+
+        mensagem.style.display = 'none';
+        estoque.textContent = 'Disponíveis: ' + quantidade + ' exemplar(es)';
+        estoque.style.display = 'block';
+        estoque.style.color = '#1e7e34';
+        if (inputData) inputData.disabled = false;
+        if (inputHora) inputHora.disabled = false;
+        if (confirmarBtn) confirmarBtn.disabled = false;
+    }
+
+    async function recarregarLivrosAlugados() {
+        const painel = document.getElementById('alugados-panel');
+        if (!painel) return;
+
+        try {
+            const resposta = await fetch('aluno.php?ajax=alugados', { cache: 'no-store' });
+            const html = await resposta.text();
+            painel.innerHTML = html;
+        } catch (error) {
+            console.error('Erro ao recarregar livros alocados:', error);
+        }
+    }
+
+    function ativarAba(tabName) {
+        const navItem = document.querySelector('.nav-item[data-panel="' + tabName + '"]');
+        if (!navItem) return;
+
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+        navItem.classList.add('active');
+
+        document.querySelectorAll('.panel').forEach(panel => {
+            panel.classList.toggle('active', panel.id === tabName + '-panel');
+        });
+
+        if (tabName === 'favoritos') {
+            renderFavoritos();
+        }
+
+        fecharCalendario();
+        fecharModalConfirmacao();
+        fecharModalSucesso();
+    }
+
     window.onload = function () {
         inicializarCalendario();
         atualizarEstrelas();
         renderFavoritos();
+
+        const tabInicial = new URLSearchParams(window.location.search).get('tab');
+        if (tabInicial) {
+            ativarAba(tabInicial);
+        }
     };
 
     window.livroSelecionado = null;
 
     function abrirCalendario(livroId) {
         window.livroSelecionado = livroId;
+        const livro = livrosData.find(item => Number(item.id) === Number(livroId));
+        atualizarStatusDisponibilidade(livro);
         document.getElementById('calendarioModal').style.display = 'block';
 
         const picker = inicializarCalendario();
@@ -796,14 +934,20 @@ try {
     function abrirModalConfirmacao() {
         const data = document.getElementById('data').value;
         const hora = document.getElementById('hora').value;
+        const livro = livrosData.find(item => Number(item.id) === Number(window.livroSelecionado));
+
+        if (livro && Number(livro.quantidade || 0) <= 0) {
+            atualizarStatusDisponibilidade(livro);
+            return;
+        }
 
         if (!data) {
-            alert('Por favor, selecione uma data antes de confirmar!');
+            alert('Por favor, selecione uma data antes de confirmar.');
             return;
         }
 
         if (!hora) {
-            alert('Por favor, selecione um horário antes de confirmar!');
+            alert('Por favor, selecione um horário antes de confirmar.');
             return;
         }
 
@@ -827,17 +971,44 @@ try {
         })
         .then(response => response.text())
         .then(result => {
+            const mensagem = result.trim();
             fecharModalConfirmacao();
             fecharCalendario();
 
-            if (result.trim() === 'OK') {
+            if (mensagem === 'OK') {
+                const livroAtual = livrosData.find(item => Number(item.id) === Number(livroId));
+                if (livroAtual) {
+                    livroAtual.quantidade = Math.max(0, Number(livroAtual.quantidade || 0) - 1);
+                }
+                recarregarLivrosAlugados();
                 document.getElementById('modalSucesso').style.display = 'flex';
-            } else {
-                alert('Erro ao salvar reserva: ' + result);
+                return;
             }
+
+            if (mensagem === 'Você já reservou este livro') {
+                alert('Você já reservou este livro. Não é possível alocar o mesmo exemplar novamente.');
+                return;
+            }
+
+            if (mensagem === 'Você já reservou este livro para essa data e horário') {
+                alert('Essa data e horário já estão reservados para você neste livro.');
+                return;
+            }
+
+            if (mensagem === 'Limite de 3 livros por usuário atingido') {
+                alert('Você já atingiu o limite de 3 livros reservados.');
+                return;
+            }
+
+            if (mensagem === 'Livro indisponível') {
+                alert('Este livro não está mais disponível para locação no momento.');
+                return;
+            }
+
+            alert('Não foi possível concluir a reserva. Tente novamente.');
         })
         .catch(() => {
-            alert('Erro de conexão!');
+            alert('Erro de conexão. Tente novamente em alguns instantes.');
         });
     }
 

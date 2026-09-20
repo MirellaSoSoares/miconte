@@ -7,59 +7,106 @@ if (!isset($_SESSION['usuario_id']) || !isset($_SESSION['usuario_email'])) {
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $aluno_id    = $_SESSION['usuario_id'];
-    $aluno_email = $_SESSION['usuario_email'];
-    $livro_id    = $_POST['livro_id'] ?? null;
-    $data        = $_POST['data'] ?? null;
-    $hora        = $_POST['hora'] ?? null;
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo "Método não permitido";
+    exit;
+}
 
-    if (!$livro_id || !$data || !$hora) {
-        echo "Dados incompletos";
+$aluno_id    = (int) $_SESSION['usuario_id'];
+$aluno_email = $_SESSION['usuario_email'];
+$livro_id    = (int) ($_POST['livro_id'] ?? 0);
+$data        = trim((string) ($_POST['data'] ?? ''));
+$hora        = trim((string) ($_POST['hora'] ?? ''));
+
+if (!$livro_id || !$data || !$hora) {
+    echo "Dados incompletos";
+    exit;
+}
+
+try {
+    $db->beginTransaction();
+
+    $stmtLivro = $db->prepare("SELECT quantidade FROM livros WHERE id = :livro_id FOR UPDATE");
+    $stmtLivro->execute([':livro_id' => $livro_id]);
+    $livro = $stmtLivro->fetch(PDO::FETCH_ASSOC);
+
+    if (!$livro) {
+        $db->rollBack();
+        echo "Livro não encontrado";
         exit;
     }
 
-    try {
-        $stmt = $db->prepare("INSERT INTO reservas 
-            (aluno_id, aluno_email, livro_id, data, hora, criado_em) 
-            VALUES (:aluno_id, :aluno_email, :livro_id, :data, :hora, CURRENT_TIMESTAMP)");
-
-        $stmt->bindParam(':aluno_id', $aluno_id, PDO::PARAM_INT);
-        $stmt->bindParam(':aluno_email', $aluno_email, PDO::PARAM_STR);
-        $stmt->bindParam(':livro_id', $livro_id, PDO::PARAM_INT);
-        $stmt->bindParam(':data', $data, PDO::PARAM_STR);
-        $stmt->bindParam(':hora', $hora, PDO::PARAM_STR);
-
-        $maxAttempts = 6;
-        $attempt = 0;
-        while (true) {
-            try {
-                if ($stmt->execute()) {
-                    echo "OK";
-                } else {
-                    echo "Erro ao inserir";
-                }
-                break;
-            } catch (PDOException $e) {
-                $attempt++;
-                $logLine = date('c') . " | confirmar.php | attempt={$attempt} | " . $e->getMessage() . PHP_EOL;
-                @file_put_contents(__DIR__ . '/db_errors.log', $logLine, FILE_APPEND);
-                if ($attempt >= $maxAttempts || stripos($e->getMessage(), 'database is locked') === false) {
-                    echo "Erro: " . $e->getMessage();
-                    break;
-                }
-                // backoff crescente (ms)
-                usleep(200000 * $attempt);
-            }
-        }
-
-        $stmt = null; // libera statement
-        $db   = null; // libera conexão
-
-    } catch (Exception $e) {
-        $logLine = date('c') . " | confirmar.php | exception | " . $e->getMessage() . PHP_EOL;
-        @file_put_contents(__DIR__ . '/db_errors.log', $logLine, FILE_APPEND);
-        echo "Erro: " . $e->getMessage();
+    if ((int) $livro['quantidade'] <= 0) {
+        $db->rollBack();
+        echo "Livro indisponível";
+        exit;
     }
+
+    $stmtDuplicado = $db->prepare("SELECT COUNT(*) AS total FROM reservas WHERE aluno_id = :aluno_id AND livro_id = :livro_id");
+    $stmtDuplicado->execute([
+        ':aluno_id' => $aluno_id,
+        ':livro_id' => $livro_id,
+    ]);
+    $duplicado = $stmtDuplicado->fetch(PDO::FETCH_ASSOC);
+
+    if ((int) $duplicado['total'] > 0) {
+        $db->rollBack();
+        echo "Você já reservou este livro";
+        exit;
+    }
+
+    $stmtHorario = $db->prepare("SELECT COUNT(*) AS total FROM reservas WHERE aluno_id = :aluno_id AND livro_id = :livro_id AND data = :data AND hora = :hora");
+    $stmtHorario->execute([
+        ':aluno_id' => $aluno_id,
+        ':livro_id' => $livro_id,
+        ':data' => $data,
+        ':hora' => $hora,
+    ]);
+    $horario = $stmtHorario->fetch(PDO::FETCH_ASSOC);
+
+    if ((int) $horario['total'] > 0) {
+        $db->rollBack();
+        echo "Você já reservou este livro para essa data e horário";
+        exit;
+    }
+
+    $stmtTotal = $db->prepare("SELECT COUNT(DISTINCT livro_id) AS total FROM reservas WHERE aluno_id = :aluno_id");
+    $stmtTotal->execute([':aluno_id' => $aluno_id]);
+    $total = $stmtTotal->fetch(PDO::FETCH_ASSOC);
+
+    if ((int) $total['total'] >= 3) {
+        $db->rollBack();
+        echo "Limite de 3 livros por usuário atingido";
+        exit;
+    }
+
+    $stmtInsert = $db->prepare("INSERT INTO reservas (aluno_id, aluno_email, livro_id, data, hora, criado_em) VALUES (:aluno_id, :aluno_email, :livro_id, :data, :hora, CURRENT_TIMESTAMP)");
+    $stmtInsert->execute([
+        ':aluno_id' => $aluno_id,
+        ':aluno_email' => $aluno_email,
+        ':livro_id' => $livro_id,
+        ':data' => $data,
+        ':hora' => $hora,
+    ]);
+
+    $stmtUpdate = $db->prepare("UPDATE livros SET quantidade = quantidade - 1 WHERE id = :livro_id AND quantidade > 0");
+    $stmtUpdate->execute([':livro_id' => $livro_id]);
+
+    if ($stmtUpdate->rowCount() !== 1) {
+        $db->rollBack();
+        echo "Não foi possível atualizar o estoque do livro";
+        exit;
+    }
+
+    $db->commit();
+    echo "OK";
+} catch (Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
+    $logLine = date('c') . " | confirmar.php | exception | " . $e->getMessage() . PHP_EOL;
+    @file_put_contents(__DIR__ . '/db_errors.log', $logLine, FILE_APPEND);
+    echo "Erro ao salvar reserva";
 }
 ?>

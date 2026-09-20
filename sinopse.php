@@ -8,11 +8,14 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['tipo'] != 'aluno') {
     exit;
 }
 
-// Pega o id enviado pelo botão
+$tabAtual = $_POST['tab'] ?? $_GET['tab'] ?? 'home';
+
+// Pega o id enviado pelo botão ou pela URL
 $livro = null;
-if (isset($_POST['id'])) {
-    $id = (int) $_POST['id'];
-    $stmt = $db->prepare("SELECT id, titulo, autor, capa, sinopse FROM livros WHERE id = :id");
+$livroId = $_POST['id'] ?? $_GET['id'] ?? null;
+if ($livroId !== null) {
+    $id = (int) $livroId;
+    $stmt = $db->prepare("SELECT id, titulo, autor, capa, sinopse, quantidade FROM livros WHERE id = :id");
     $stmt->bindParam(':id', $id, PDO::PARAM_INT);
     $stmt->execute();
     $livro = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -95,11 +98,12 @@ if (isset($_POST['id'])) {
             position: fixed;
             top: 0;
             right: 0;
-            width: 38%;
+            width: min(420px, 90vw);
             height: 100%;
-            background: #fff;
-            box-shadow: -2px 0 8px rgba(0,0,0,0.25);
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: -2px 0 12px rgba(0, 0, 0, 0.2);
             z-index: 1000;
+            border-left: 1px solid rgba(0, 0, 0, 0.08);
         }
         .modal-content {
             padding: 24px;
@@ -113,15 +117,43 @@ if (isset($_POST['id'])) {
         .modal-content h3 {
             margin-top: 8px;
             color: #2d2d2d;
+            font-size: 1.4rem;
+        }
+        .disponibilidade-mensagem {
+            display: none;
+            margin: 10px 0 12px;
+            font-weight: 700;
+            color: #b00020;
+            text-align: left;
+            background: #fff1f3;
+            border: 1px solid rgba(176, 0, 32, 0.2);
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+        .disponibilidade-estoque {
+            display: none;
+            margin: 10px 0 12px;
+            font-weight: 700;
+            color: #1e7e34;
+            text-align: left;
+            background: #edf9f0;
+            border: 1px solid rgba(30, 126, 52, 0.2);
+            border-radius: 8px;
+            padding: 10px 12px;
         }
         .modal-content input,
         .modal-content select {
             width: 100%;
             margin: 12px 0;
-            padding: 10px;
+            padding: 12px 10px;
+            border-radius: 8px;
+            border: 1px solid #d9d9d9;
+            box-sizing: border-box;
         }
         .modal-content button {
             margin-top: 10px;
+            width: 100%;
+            border-radius: 8px;
         }
 
         .confirmation-box,
@@ -197,7 +229,7 @@ if (isset($_POST['id'])) {
     <div class="sinopse-container">
         <?php if ($livro): ?>
             <div class="sinopse-card">
-                <a href="aluno.php" class="voltar">←</a>
+                <a href="aluno.php?tab=<?php echo urlencode($tabAtual); ?>" class="voltar">←</a>
                 <img src="imagens/<?php echo $livro['capa']; ?>" alt="Capa do livro">
                 <h2><?php echo strtoupper($livro['titulo']); ?></h2>
                 <div class="autor"><?php echo $livro['autor']; ?></div>
@@ -212,7 +244,10 @@ if (isset($_POST['id'])) {
     <div id="calendarioModal" class="modal">
       <div class="modal-content">
         <span class="close" onclick="fecharCalendario()">&times;</span>
-        <h3>Selecione a data e horário</h3>
+        <h3>Selecione a data e o horário</h3>
+
+        <div id="disponibilidadeMensagem" class="disponibilidade-mensagem" aria-live="polite"></div>
+        <div id="disponibilidadeEstoque" class="disponibilidade-estoque" aria-live="polite"></div>
 
         <input type="date" id="data" name="data" required>
 
@@ -226,10 +261,9 @@ if (isset($_POST['id'])) {
           ?>
         </select>
 
-        <button type="button" onclick="abrirModalConfirmacao()">Confirmar</button>
+        <button type="button" onclick="abrirModalConfirmacao()">Confirmar reserva</button>
       </div>
     </div>
-a
     <div id="modalConfirmacao" class="confirmation-box" style="display:none;">
         <h3>Deseja confirmar a reserva?</h3>
         <div class="confirmation-actions">
@@ -256,6 +290,7 @@ a
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
         window.livroSelecionado = <?php echo (int) ($livro['id'] ?? 0); ?>;
+        const quantidadeDisponivel = Number(<?php echo (int) ($livro['quantidade'] ?? 0); ?>);
 
         let dataPicker = null;
 
@@ -279,8 +314,38 @@ a
             return dataPicker;
         }
 
+        function atualizarStatusDisponibilidade() {
+            const mensagem = document.getElementById('disponibilidadeMensagem');
+            const estoque = document.getElementById('disponibilidadeEstoque');
+            const inputData = document.getElementById('data');
+            const inputHora = document.getElementById('hora');
+            const confirmarBtn = document.querySelector('#calendarioModal button');
+
+            if (quantidadeDisponivel <= 0) {
+                mensagem.textContent = 'Que pena! Este exemplar acabou. Tente outro livro ou volte mais tarde.';
+                mensagem.style.display = 'block';
+                mensagem.style.color = '#b00020';
+                estoque.textContent = 'Quantidade disponível: 0';
+                estoque.style.display = 'block';
+                estoque.style.color = '#b00020';
+                if (inputData) inputData.disabled = true;
+                if (inputHora) inputHora.disabled = true;
+                if (confirmarBtn) confirmarBtn.disabled = true;
+                return;
+            }
+
+            mensagem.style.display = 'none';
+            estoque.textContent = 'Disponíveis: ' + quantidadeDisponivel + ' exemplar(es)';
+            estoque.style.display = 'block';
+            estoque.style.color = '#1e7e34';
+            if (inputData) inputData.disabled = false;
+            if (inputHora) inputHora.disabled = false;
+            if (confirmarBtn) confirmarBtn.disabled = false;
+        }
+
         window.onload = function () {
             inicializarCalendarioSinopse();
+            atualizarStatusDisponibilidade();
         };
 
         function abrirCalendario(livroId) {
@@ -293,6 +358,7 @@ a
                     picker.open();
                 }
             }, 60);
+            atualizarStatusDisponibilidade();
         }
 
         function fecharCalendario() {
@@ -302,6 +368,11 @@ a
         function abrirModalConfirmacao() {
             const data = document.getElementById('data').value;
             const hora = document.getElementById('hora').value;
+
+            if (quantidadeDisponivel <= 0) {
+                atualizarStatusDisponibilidade();
+                return;
+            }
 
             if (!data) {
                 alert('Por favor, selecione uma data antes de confirmar!');
