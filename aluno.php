@@ -41,7 +41,8 @@ try {
         * { box-sizing: border-box; }
 
         html, body {
-            height: 100%;
+            min-height: 100%;
+            height: auto;
         }
 
         body {
@@ -51,6 +52,8 @@ try {
             color: #2d2d2d;
             display: flex;
             flex-direction: column;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
 
         .app-shell {
@@ -132,6 +135,12 @@ try {
             background: #f5f5dc;
             display: flex;
             justify-content: center;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .content .panel {
+            min-height: 100%;
         }
 
         .panel {
@@ -236,14 +245,15 @@ try {
             transition: 0.2s ease;
         }
 
-        .btn-primary {
+        .btn-primary,
+        .btn-secondary {
             background: #746f5c;
             color: white;
         }
 
         .btn-secondary {
-            background: #d9d9d9;
-            color: #333;
+            background: #746f5c;
+            color: white;
         }
 
         .btn:hover {
@@ -280,20 +290,142 @@ try {
         }
 
         .profile-box {
-            max-width: 700px;
-            background: rgba(255,255,255,0.12);
-            border-radius: 12px;
-            padding: 20px;
+            max-width: 760px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06));
+            border: 1px solid rgba(114, 47, 55, 0.15);
+            border-radius: 18px;
+            padding: 28px 26px;
             color: #2b2b2b;
+            box-shadow: 0 10px 24px rgba(60, 42, 32, 0.08);
         }
 
-        .profile-box .row {
-            margin-bottom: 10px;
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 22px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid rgba(114, 47, 55, 0.15);
+        }
+
+        .profile-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #722f37, #9d5a4e);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            font-weight: bold;
+            box-shadow: 0 8px 18px rgba(114, 47, 55, 0.25);
+        }
+
+        .profile-name {
+            margin: 0;
+            font-size: 1.6rem;
+            color: #2e2e2e;
+        }
+
+        .profile-role {
+            margin: 4px 0 0;
+            color: #5d5d5d;
+            font-size: 0.95rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .profile-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 18px;
+        }
+
+        .profile-card {
+            background: rgba(255,255,255,0.22);
+            border: 1px solid rgba(114, 47, 55, 0.08);
+            border-radius: 12px;
+            padding: 16px 18px;
+        }
+
+        .profile-label {
+            display: block;
+            font-size: 0.8rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #6d5f42;
+            margin-bottom: 8px;
+        }
+
+        .profile-value {
+            margin: 0;
             font-size: 1rem;
+            color: #202020;
+            word-break: break-word;
         }
 
-        .profile-box strong {
-            color: #111;
+        .confirmation-overlay,
+        .success-overlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.38);
+            z-index: 3000;
+        }
+
+        .confirmation-box,
+        .success-box {
+            width: min(420px, calc(100% - 32px));
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(114, 47, 55, 0.25);
+            border-radius: 12px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+            padding: 26px 22px;
+            text-align: center;
+        }
+
+        .confirmation-box h3,
+        .success-box h3 {
+            margin: 0 0 18px;
+            font-size: 1.1rem;
+            color: #2d2d2d;
+        }
+
+        .confirmation-actions,
+        .success-actions {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .confirmation-box button,
+        .success-box button {
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 700;
+            padding: 10px 18px;
+            min-width: 90px;
+        }
+
+        .confirm-yes {
+            background: #722f37;
+            color: white;
+        }
+
+        .confirm-no {
+            background: #d9d9d9;
+            color: #333;
+        }
+
+        .success-icon {
+            font-size: 52px;
+            color: #2e8b57;
+            margin: 8px 0 12px;
         }
 
         footer {
@@ -307,6 +439,7 @@ try {
         @media (max-width: 900px) {
             .app-shell {
                 flex-direction: column;
+                min-height: auto;
             }
 
             .sidebar {
@@ -315,10 +448,25 @@ try {
 
             .content {
                 padding: 18px 20px;
+                overflow: visible;
+                min-height: auto;
             }
 
             .book-card {
                 max-width: 100%;
+            }
+
+            .book-actions {
+                align-items: stretch;
+            }
+
+            .book-actions > * {
+                width: auto;
+                flex: 1 1 auto;
+            }
+
+            #calendarioModal {
+                width: min(90vw, 420px);
             }
         }
     </style>
@@ -431,15 +579,36 @@ try {
             <h2 class="title-bar">Configurações</h2>
 
             <div class="profile-box">
-                <div class="row"><strong>Nome:</strong> <?= htmlspecialchars($usuarioNome) ?></div>
-                <div class="row"><strong>Email:</strong> <?= htmlspecialchars($usuarioEmail) ?></div>
-                <div class="row"><strong>Tipo:</strong> Aluno</div>
+                <div class="profile-header">
+                    <div class="profile-avatar"><?= strtoupper(substr($usuarioNome, 0, 1)) ?></div>
+                    <div>
+                        <h3 class="profile-name"><?= htmlspecialchars($usuarioNome) ?></h3>
+                        <p class="profile-role">Aluno</p>
+                    </div>
+                </div>
+
+                <div class="profile-grid">
+                    <div class="profile-card">
+                        <span class="profile-label">Nome</span>
+                        <p class="profile-value"><?= htmlspecialchars($usuarioNome) ?></p>
+                    </div>
+
+                    <div class="profile-card">
+                        <span class="profile-label">Email</span>
+                        <p class="profile-value"><?= htmlspecialchars($usuarioEmail) ?></p>
+                    </div>
+
+                    <div class="profile-card">
+                        <span class="profile-label">Tipo de conta</span>
+                        <p class="profile-value">Aluno</p>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
 </div>
 
-<div id="calendarioModal" style="display:none; position:fixed; top:0; right:0; width:38%; height:100%; background:#fff; box-shadow:-2px 0 8px rgba(0,0,0,0.3); z-index:1000;">
+<div id="calendarioModal" style="display:none; position:fixed; top:0; right:0; width:min(420px, 90vw); height:100%; background:#fff; box-shadow:-2px 0 8px rgba(0,0,0,0.3); z-index:1000; box-sizing:border-box;">
     <div style="padding:24px;">
         <span class="close" onclick="fecharCalendario()" style="float:right; font-size:24px; cursor:pointer;">&times;</span>
         <h3>Selecione a data e horário</h3>
@@ -460,22 +629,24 @@ try {
     </div>
 </div>
 
-<div id="modalConfirmacao" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.35); z-index:2000;">
-    <div style="width:360px; margin:150px auto; background:#fff; border-radius:10px; padding:24px; text-align:center;">
+<div id="modalConfirmacao" class="confirmation-overlay">
+    <div class="confirmation-box">
         <h3>Deseja confirmar a reserva?</h3>
-        <div style="display:flex; justify-content:center; gap:12px; margin-top:20px;">
-            <button class="btn btn-primary" onclick="confirmarReserva()">Sim</button>
-            <button class="btn btn-secondary" onclick="fecharModalConfirmacao()">Não</button>
+        <div class="confirmation-actions">
+            <button class="confirm-yes" onclick="confirmarReserva()">Sim</button>
+            <button class="confirm-no" onclick="fecharModalConfirmacao()">Não</button>
         </div>
     </div>
 </div>
 
-<div id="modalSucesso" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.35); z-index:2000;">
-    <div style="width:340px; margin:150px auto; background:#fff; border-radius:10px; padding:24px; text-align:center;">
+<div id="modalSucesso" class="success-overlay">
+    <div class="success-box">
         <h3>Reserva concluída!</h3>
-        <div style="font-size:50px; color:green; margin:12px 0;">✔</div>
+        <div class="success-icon">✔</div>
         <p>Seu processo foi finalizado com sucesso.</p>
-        <button class="btn btn-primary" onclick="fecharModalSucesso()">OK</button>
+        <div class="success-actions">
+            <button class="confirm-yes" onclick="fecharModalSucesso()">OK</button>
+        </div>
     </div>
 </div>
 
@@ -636,7 +807,8 @@ try {
             return;
         }
 
-        document.getElementById('modalConfirmacao').style.display = 'block';
+        document.getElementById('calendarioModal').style.display = 'none';
+        document.getElementById('modalConfirmacao').style.display = 'flex';
     }
 
     function fecharModalConfirmacao() {
@@ -659,7 +831,7 @@ try {
             fecharCalendario();
 
             if (result.trim() === 'OK') {
-                document.getElementById('modalSucesso').style.display = 'block';
+                document.getElementById('modalSucesso').style.display = 'flex';
             } else {
                 alert('Erro ao salvar reserva: ' + result);
             }

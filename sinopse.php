@@ -123,6 +123,70 @@ if (isset($_POST['id'])) {
         .modal-content button {
             margin-top: 10px;
         }
+
+        .confirmation-box,
+        .success-box {
+            /* Faz o modal flutuar no centro exato da tela por conta própria */
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            
+            /* Configurações visuais que você já tinha */
+            width: min(440px, calc(100% - 32px));
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 28px 22px 24px;
+            box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
+            text-align: center;
+            border: 1px solid rgba(0,0,0,0.08);
+            
+            /* Garante que ele fique por cima de tudo */
+            z-index: 3000;
+        }
+
+        .confirmation-box h3,
+        .success-box h3 {
+            margin: 0 0 20px;
+            color: #2d2d2d;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .confirmation-actions,
+        .success-actions {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .confirmation-box button,
+        .success-box button {
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 700;
+            padding: 10px 18px;
+            line-height: 1.2;
+        }
+
+        .confirm-yes {
+            background: #722f37;
+            color: #fff;
+        }
+
+        .confirm-no {
+            background: #d9d9d9;
+            color: #333;
+        }
+
+        .success-icon {
+            font-size: 52px;
+            color: #2e8b57;
+            margin: 8px 0 12px;
+            line-height: 1;
+        }
     </style>
 </head>
 <body>
@@ -165,23 +229,23 @@ if (isset($_POST['id'])) {
         <button type="button" onclick="abrirModalConfirmacao()">Confirmar</button>
       </div>
     </div>
-
-    <div id="modalConfirmacao" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.35); z-index:2000;">
-      <div style="width:360px; margin:150px auto; background:#fff; border-radius:10px; padding:24px; text-align:center;">
+a
+    <div id="modalConfirmacao" class="confirmation-box" style="display:none;">
         <h3>Deseja confirmar a reserva?</h3>
-        <div style="display:flex; justify-content:center; gap:12px; margin-top:20px;">
-          <button style="background:#746f5c;color:white;padding:10px 16px;border:none;border-radius:5px;cursor:pointer;" onclick="confirmarReserva()">Sim</button>
-          <button style="background:#d9d9d9;color:#333;padding:10px 16px;border:none;border-radius:5px;cursor:pointer;" onclick="fecharModalConfirmacao()">Não</button>
+        <div class="confirmation-actions">
+          <button class="confirm-yes" onclick="confirmarReserva()">Sim</button>
+          <button class="confirm-no" onclick="fecharModalConfirmacao()">Não</button>
         </div>
       </div>
     </div>
 
-    <div id="modalSucesso" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.35); z-index:2000;">
-      <div style="width:340px; margin:150px auto; background:#fff; border-radius:10px; padding:24px; text-align:center;">
+    <div id="modalSucesso" class="success-box" style="display:none;">
         <h3>Reserva concluída!</h3>
-        <div style="font-size:50px; color:green; margin:12px 0;">✔</div>
+        <div class="success-icon">✔</div>
         <p>Seu processo foi finalizado com sucesso.</p>
-        <button style="background:#746f5c;color:white;padding:10px 16px;border:none;border-radius:5px;cursor:pointer;" onclick="fecharModalSucesso()">OK</button>
+        <div class="success-actions">
+          <button class="confirm-yes" onclick="fecharModalSucesso()">OK</button>
+        </div>
       </div>
     </div>
 
