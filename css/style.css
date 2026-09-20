@@ -1,0 +1,119 @@
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #722f37; /* vinho */
+    display: flex;
+    flex-direction: column; /* organiza em coluna */
+    align-items: center;    /* centraliza horizontalmente */
+    min-height: 100vh;      /* ocupa altura toda */
+}
+
+.login-container {
+    background-color: #f5e8d3; /* bege */
+    padding: 40px;
+    border-radius: 10px;
+    width: 350px;
+    text-align: center;
+    box-shadow: 0 0 15px rgba(0,0,0,0.3);
+}
+
+.login-container h1 {
+    margin-bottom: 10px;
+    color: #722f37;
+}
+
+.login-container p {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.login-container input {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.login-container button {
+    background-color: #722f37;
+    color: #fff;
+    border: none;
+    padding: 12px;
+    width: 100%;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.login-container button:hover {
+    background-color: #7a2f2f;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #722f37; /* vinho */
+    display: flex;
+    flex-direction: column; /* organiza em coluna */
+    align-items: center;    /* centraliza horizontalmente */
+    min-height: 100vh;      /* ocupa altura toda */
+}
+
+.page-title {
+    text-align: center;
+    margin-top: 30px;
+    margin-bottom: 20px;
+    color: #fff;
+}
+
+.login-container {
+    background-color: #f5e8d3; /* bege */
+    padding: 40px;
+    border-radius: 10px;
+    width: 350px;
+    text-align: center;
+    box-shadow: 0 0 15px rgba(0,0,0,0.3);
+}
+
+.page-footer {
+    text-align: center;
+    margin-top: auto; /* empurra para o fim da página */
+    margin-bottom: 20px;
+    color: #fff;
+}
+
+.professor-link {
+    color: #6a0dad; /* roxo */
+    font-weight: bold;
+    text-decoration: none;
+    display: inline-block;
+    margin-top: 10px;
+}
+
+.professor-link:hover {
+    text-decoration: underline;
+}
+
+.erro-msg {
+    color: #cc0000;       /* vermelho suave */
+    font-size: 0.9em;     /* menor que o texto normal */
+    margin: 5px 0 10px 0; /* espaço entre o campo e a mensagem */
+    text-align: left;     /* alinhado ao campo */
+}
+.page-title {
+    text-align: center;
+    padding: 20px;
+    background-color: transparent;
+}
+.page-title img {
+    max-height: 100px; /* aumenta o tamanho do ícone */
+    display: block;
+    margin: 0 auto 15px auto;
+}
+.page-title h1 {
+    color: #fff;       /* branco, para não ficar vermelho */
+    font-size: 32px;
+    margin: 0;
+}
+
