@@ -113,10 +113,10 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
                 <span>Configurações</span>
             </button>
 
-            <button class="nav-item outline" id="logoutBtn">
+            <a href="#" class="nav-item outline" id="logoutBtn" style="text-decoration:none;color:#ffffff;display:flex;align-items:center;gap:10px;" onclick="if(confirm('Deseja sair da sua sessão?')){ window.location.href='logout.php'; } return false;">
                 <span>🚪</span>
                 <span>Sair</span>
-            </button>
+            </a>
         </nav>
     </aside>
 
@@ -420,9 +420,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
             renderFavoritos();
         }
 
-        if (event.target.closest('#logoutBtn')) {
-            window.location.href = 'index.php';
-        }
+        // logout handled by link's onclick confirmation; no automatic redirect here
     });
 
     let calendarioPicker = null;

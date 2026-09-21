@@ -29,11 +29,42 @@ if ($livroId !== null) {
     <title><?php echo $livro ? $livro['titulo'] : 'Sinopse'; ?></title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="css/aluno.css">
+    <style>
+        /* Top bar specific to sinopse page */
+        .sinopse-topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: #722f37;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+        }
+        .sinopse-topbar h1 {
+            margin: 0;
+            color: #fff;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+        /* ensure page content isn't hidden behind the fixed bar */
+        .sinopse-container, .app-shell, body {
+            padding-top: 72px;
+        }
+        /* smaller screens: reduce padding */
+        @media (max-width: 600px) {
+            .sinopse-topbar { height: 48px; }
+            .sinopse-topbar h1 { font-size: 16px; }
+            .sinopse-container, .app-shell, body { padding-top: 64px; }
+        }
+    </style>
 </head>
 <body>
-    <header>
-        Sinopse
-    </header>
+    <div class="sinopse-topbar" role="banner"><h1>Sinopse</h1></div>
 
     <div class="sinopse-container">
         <?php if ($livro): ?>
@@ -70,26 +101,29 @@ if ($livroId !== null) {
           ?>
         </select>
 
-        <button type="button" onclick="abrirModalConfirmacao()">Confirmar reserva</button>
-      </div>
-    </div>
-    <div id="modalConfirmacao" class="confirmation-box hidden-box">
-        <h3>Deseja confirmar a reserva?</h3>
-        <div class="confirmation-actions">
-          <button class="confirm-yes" onclick="confirmarReserva()">Sim</button>
-          <button class="confirm-no" onclick="fecharModalConfirmacao()">Não</button>
-        </div>
+       <button type="button" class="btn btn-primary" onclick="abrirModalConfirmacao()">Confirmar</button>
       </div>
     </div>
 
-    <div id="modalSucesso" class="success-box hidden-box">
-        <h3>Reserva concluída!</h3>
-        <div class="success-icon">✔</div>
-        <p>Seu processo foi finalizado com sucesso.</p>
-        <div class="success-actions">
-          <button class="confirm-yes" onclick="fecharModalSucesso()">OK</button>
+    <div id="modalConfirmacao" class="confirmation-overlay">
+        <div class="confirmation-box">
+            <h3>Deseja confirmar a reserva?</h3>
+            <div class="confirmation-actions">
+                <button class="confirm-yes" onclick="confirmarReserva()">Sim</button>
+                <button class="confirm-no" onclick="fecharModalConfirmacao()">Não</button>
+            </div>
         </div>
-      </div>
+    </div>
+
+    <div id="modalSucesso" class="success-overlay">
+        <div class="success-box">
+            <h3>Reserva concluída!</h3>
+            <div class="success-icon">✔</div>
+            <p>Seu processo foi finalizado com sucesso.</p>
+            <div class="success-actions">
+                <button class="confirm-yes" onclick="fecharModalSucesso()">OK</button>
+            </div>
+        </div>
     </div>
 
     <footer>
