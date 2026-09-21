@@ -36,7 +36,8 @@ try {
         autor VARCHAR(255) NOT NULL,
         capa VARCHAR(255) NULL,
         sinopse TEXT NULL,
-        quantidade INT DEFAULT 0
+        quantidade INT DEFAULT 0,
+        generos VARCHAR(255) NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
     $mysql->exec("CREATE TABLE reservas (
@@ -58,9 +59,9 @@ try {
             'columns' => ['id', 'nome', 'email', 'senha', 'tipo'],
         ],
         'livros' => [
-            'select' => 'SELECT id, titulo, autor, capa, sinopse, quantidade FROM livros',
-            'insert' => 'INSERT INTO livros (id, titulo, autor, capa, sinopse, quantidade) VALUES (?, ?, ?, ?, ?, ?)',
-            'columns' => ['id', 'titulo', 'autor', 'capa', 'sinopse', 'quantidade'],
+            'select' => 'SELECT id, titulo, autor, capa, sinopse, quantidade, generos FROM livros',
+            'insert' => 'INSERT INTO livros (id, titulo, autor, capa, sinopse, quantidade, generos) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            'columns' => ['id', 'titulo', 'autor', 'capa', 'sinopse', 'quantidade', 'generos'],
         ],
         'reservas' => [
             'select' => 'SELECT id, aluno_id, aluno_email, livro_id, data, hora, criado_em FROM reservas',

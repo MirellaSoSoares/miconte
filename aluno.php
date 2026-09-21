@@ -13,6 +13,16 @@ $usuarioEmail = $_SESSION['usuario_email'] ?? 'email@exemplo.com';
 $stmt = $db->query("SELECT * FROM livros ORDER BY titulo");
 $livros = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+$livros = array_map(function ($livro) {
+    $livro['genero'] = trim((string) ($livro['generos'] ?? ''));
+    if ($livro['genero'] === '') {
+        $livro['genero'] = 'Romance';
+    }
+    return $livro;
+}, $livros);
+
+$generosDisponiveis = ['Todos', 'Romance', 'Fantasia', 'Terror'];
+
 $livrosAlugados = [];
 try {
     $sql = "
@@ -112,9 +122,26 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
 
     <main class="content">
         <section class="panel active" id="home-panel">
-            <div class="book-list">
+            <div class="book-filters">
+                <div class="search-field search-wide">
+                    <label for="searchLivro">Buscar</label>
+                    <input type="text" id="searchLivro" placeholder="Nome do livro ou autor">
+                </div>
+            </div>
+
+            <div class="genre-filter-bar" id="genreFilterBar">
+                <?php foreach ($generosDisponiveis as $genero): ?>
+                    <button type="button" class="genre-tag <?= $genero === 'Todos' ? 'active' : '' ?>" data-genre="<?= htmlspecialchars($genero, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($genero) ?></button>
+                <?php endforeach; ?>
+            </div>
+
+            <div class="book-list" id="homeBookList">
                 <?php foreach ($livros as $livro): ?>
-                    <div class="book-card" data-book-id="<?= $livro['id'] ?>">
+                    <div class="book-card"
+                         data-book-id="<?= $livro['id'] ?>"
+                         data-titulo="<?= htmlspecialchars($livro['titulo'], ENT_QUOTES, 'UTF-8') ?>"
+                         data-autor="<?= htmlspecialchars($livro['autor'], ENT_QUOTES, 'UTF-8') ?>"
+                         data-genero="<?= htmlspecialchars($livro['genero'], ENT_QUOTES, 'UTF-8') ?>">
                         <div class="book-cover">
                             <img src="imagens/<?= htmlspecialchars($livro['capa']) ?>" alt="<?= htmlspecialchars($livro['titulo']) ?>">
                         </div>
@@ -122,6 +149,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
                         <div class="book-info">
                             <h3><?= htmlspecialchars($livro['titulo']) ?></h3>
                             <p><?= htmlspecialchars($livro['autor']) ?></p>
+                            <span class="book-genre-tag"><?= htmlspecialchars($livro['genero']) ?></span>
 
                             <div class="book-actions">
                                 <button type="button" class="favorite-toggle" data-id="<?= $livro['id'] ?>" aria-label="Adicionar aos favoritos">☆</button>
@@ -285,6 +313,31 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
 <script>
     const FAVORITES_KEY = 'miconte_favoritos';
     const livrosData = <?php echo json_encode($livros, JSON_UNESCAPED_UNICODE); ?>;
+
+    const filtrosLivros = {
+        texto: '',
+        genero: 'Todos'
+    };
+
+    function normalizarTexto(texto) {
+        return (texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
+    function aplicarFiltrosLivros() {
+        const termo = normalizarTexto(filtrosLivros.texto);
+        const generoSelecionado = normalizarTexto(filtrosLivros.genero);
+
+        document.querySelectorAll('#home-panel .book-card').forEach(card => {
+            const titulo = normalizarTexto(card.dataset.titulo);
+            const autor = normalizarTexto(card.dataset.autor);
+            const genero = normalizarTexto(card.dataset.genero || 'Romance');
+
+            const matchesTexto = !termo || titulo.includes(termo) || autor.includes(termo);
+            const matchesGenero = generoSelecionado === 'todos' || genero === generoSelecionado;
+
+            card.style.display = matchesTexto && matchesGenero ? 'flex' : 'none';
+        });
+    }
 
     function getFavoritos() {
         try {
@@ -495,7 +548,26 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
         fecharModalSucesso();
     }
 
-    window.onload = function () {
+    document.addEventListener('DOMContentLoaded', function () {
+        const inputBusca = document.getElementById('searchLivro');
+        const generoTags = document.querySelectorAll('.genre-tag');
+
+        if (inputBusca) {
+            inputBusca.addEventListener('input', function () {
+                filtrosLivros.texto = this.value;
+                aplicarFiltrosLivros();
+            });
+        }
+
+        generoTags.forEach(tag => {
+            tag.addEventListener('click', function () {
+                const genero = this.dataset.genre || 'Todos';
+                filtrosLivros.genero = genero;
+                generoTags.forEach(item => item.classList.toggle('active', item === this));
+                aplicarFiltrosLivros();
+            });
+        });
+
         inicializarCalendario();
         atualizarEstrelas();
         renderFavoritos();
@@ -504,7 +576,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
         if (tabInicial) {
             ativarAba(tabInicial);
         }
-    };
+    });
 
     window.livroSelecionado = null;
 
