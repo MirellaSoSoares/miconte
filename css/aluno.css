@@ -430,6 +430,7 @@ body {
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
     padding: 22px 20px 18px;
     border: 1px solid rgba(114, 47, 55, 0.18);
+    text-align: center;
 }
 
 .modal-details-close {
@@ -461,6 +462,7 @@ body {
     color: #333;
     line-height: 1.6;
     font-size: 1rem;
+    text-align: left;
 }
 
 .modal-details-actions {
@@ -468,6 +470,63 @@ body {
     justify-content: center;
     align-items: center;
     margin-top: 10px;
+}
+
+.reserva-qr-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 12px 0 18px;
+    padding: 16px 12px 14px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #f8f2f1 0%, #f0e9e7 100%);
+    border: 1px solid rgba(114, 47, 55, 0.12);
+    text-align: center;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.reserva-qr-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6a4a3d;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.5;
+}
+
+.reserva-qr-code {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 180px;
+    min-height: 180px;
+    margin: 0 auto;
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 10px;
+    border: 1px solid rgba(114, 47, 55, 0.12);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+    text-align: center;
+}
+
+.reserva-qr-code canvas {
+    width: 180px !important;
+    height: 180px !important;
+    display: block !important;
+    margin: 0 auto !important;
+    border: 0 !important;
+    background: #ffffff;
+}
+
+.qr-error {
+    color: #8a3a3a;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-align: center;
 }
 
 .modal-details-actions .cancel-btn {
@@ -478,6 +537,8 @@ body {
     font-weight: 700;
     padding: 12px 22px;
     cursor: pointer;
+    min-width: 180px;
+    box-shadow: 0 8px 18px rgba(114, 47, 55, 0.18);
 }
 
 #calendarioModal {

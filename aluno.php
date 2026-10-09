@@ -55,10 +55,15 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
             $html .= '    <h3>' . htmlspecialchars($livro['titulo'] ?? 'Livro') . '</h3>';
             $html .= '    <p>' . htmlspecialchars($livro['autor'] ?? '') . '</p>';
             $html .= '    <div class="book-actions">';
-            $html .= '      <form method="POST" action="sinopse.php?tab=alugados" class="inline-form align-end">';
-            $html .= '        <input type="hidden" name="id" value="' . ($livro['livro_id'] ?? $livro['id'] ?? 0) . '">';
-            $html .= '        <button type="submit" class="btn btn-primary btn-details">Detalhes</button>';
-            $html .= '      </form>';
+            $html .= '      <button';
+            $html .= '        type="button"';
+            $html .= '        class="btn btn-primary btn-details"';
+            $html .= '        data-reserva-id="' . (int) ($livro['id'] ?? 0) . '"';
+            $html .= '        data-livro-id="' . (int) ($livro['livro_id'] ?? 0) . '"';
+            $html .= '        data-livro-titulo="' . htmlspecialchars($livro['titulo'] ?? 'Livro', ENT_QUOTES, 'UTF-8') . '"';
+            $html .= '        data-data="' . htmlspecialchars($livro['data'] ?? '', ENT_QUOTES, 'UTF-8') . '"';
+            $html .= '        data-hora="' . htmlspecialchars($livro['hora'] ?? '', ENT_QUOTES, 'UTF-8') . '"';
+            $html .= '        onclick="abrirDetalhesReserva(this)">Detalhes</button>';
             $html .= '    </div>';
             $html .= '  </div>';
             $html .= '</div>';
@@ -282,6 +287,12 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
         <button type="button" class="modal-details-close" onclick="fecharDetalhesReserva()" aria-label="Fechar detalhes">←</button>
         <h3>Reserva do livro</h3>
         <div class="modal-details-content" id="detalhesReservaConteudo"></div>
+
+        <div class="reserva-qr-container" aria-live="polite">
+            <div class="reserva-qr-label">Utilize este QR para confirmar sua reserva</div>
+            <div id="reservaQrCode" class="reserva-qr-code"></div>
+        </div>
+
         <div class="modal-details-actions">
             <button type="button" class="cancel-btn" onclick="abrirConfirmacaoCancelamento()">Cancelar reserva</button>
         </div>
@@ -300,9 +311,9 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
 
 <div id="modalSucesso" class="success-overlay">
     <div class="success-box">
-        <h3>Reserva concluída!</h3>
+        <h3>Reserída!</h3>
         <div class="success-icon">✔</div>
-        <p>Seu processo foi finalizado com sucesso.</p>
+        <p>Seu processo foi finalizado com sucesso. Para mais informações sobre sua reserva, consulte a aba de livros alocados!</p>
         <div class="success-actions">
             <button class="confirm-yes" onclick="fecharModalSucesso()">OK</button>
         </div>
@@ -310,9 +321,11 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 <script>
     const FAVORITES_KEY = 'miconte_favoritos';
     const livrosData = <?php echo json_encode($livros, JSON_UNESCAPED_UNICODE); ?>;
+    const usuarioAtualId = <?php echo (int) ($_SESSION['usuario_id'] ?? 0); ?>;
 
     const filtrosLivros = {
         texto: '',
@@ -419,8 +432,6 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
             atualizarEstrelas();
             renderFavoritos();
         }
-
-        // logout handled by link's onclick confirmation; no automatic redirect here
     });
 
     let calendarioPicker = null;
@@ -440,6 +451,35 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
         });
 
         return calendarioPicker;
+    }
+
+    function setModalVisible(modalId, visible, displayMode = 'flex') {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+        modal.style.display = visible ? displayMode : 'none';
+    }
+
+    function resetarInputsReserva() {
+        const inputData = document.getElementById('data');
+        const inputHora = document.getElementById('hora');
+
+        if (inputData) {
+            inputData.value = '';
+            inputData.disabled = true;
+        }
+
+        if (inputHora) {
+            inputHora.selectedIndex = 0;
+            inputHora.disabled = true;
+        }
+    }
+
+    function resetarModalSucesso() {
+        const modalSucesso = document.getElementById('modalSucesso');
+        if (!modalSucesso) return;
+
+        modalSucesso.querySelector('h3').textContent = 'Reserva concluída!';
+        modalSucesso.querySelector('p').textContent = 'Seu processo foi finalizado com sucesso. Para mais informações sobre sua reserva, consulte a aba de livros alocados!';
     }
 
     function atualizarStatusDisponibilidade(livro) {
@@ -497,6 +537,71 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
         }
     }
 
+    function gerarPayloadQrReserva({ reservaId, livroId, alunoId, data, hora }) {
+        const campos = [
+            'miconte',
+            String(Number(reservaId || 0)),
+            String(Number(livroId || 0)),
+            String(Number(alunoId || 0)),
+            String(data || ''),
+            String(hora || '')
+        ];
+
+        return campos.join('|');
+    }
+
+    function limparQrReserva() {
+        const qrContainer = document.getElementById('reservaQrCode');
+        if (!qrContainer) return;
+        qrContainer.innerHTML = '';
+    }
+
+    function renderizarQrReserva({ reservaId, livroId, data, hora, titulo }) {
+        const qrContainer = document.getElementById('reservaQrCode');
+        if (!qrContainer || !window.QRCode) {
+            if (qrContainer) {
+                qrContainer.innerHTML = '<div class="qr-error">QR indisponível</div>';
+            }
+            return;
+        }
+
+        const payload = gerarPayloadQrReserva({
+            reservaId,
+            livroId,
+            alunoId: usuarioAtualId,
+            data,
+            hora
+        });
+
+        limparQrReserva();
+
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 180;
+            canvas.height = 180;
+            canvas.setAttribute('aria-label', 'Código QR da reserva');
+            qrContainer.appendChild(canvas);
+
+            QRCode.toCanvas(canvas, payload, {
+                width: 180,
+                margin: 1,
+                color: {
+                    dark: '#1f1f1f',
+                    light: '#ffffff'
+                },
+                errorCorrectionLevel: 'H'
+            }, function (error) {
+                if (error) {
+                    console.error('Erro ao gerar QR da reserva:', error);
+                    qrContainer.innerHTML = '<div class="qr-error">QR indisponível</div>';
+                }
+            });
+        } catch (error) {
+            console.error('Erro ao renderizar QR da reserva:', error);
+            qrContainer.innerHTML = '<div class="qr-error">QR indisponível</div>';
+        }
+    }
+
     function abrirDetalhesReserva(botao) {
         const reservaId = Number(botao.dataset.reservaId || 0);
         const livroId = Number(botao.dataset.livroId || 0);
@@ -509,21 +614,25 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
             '<strong>Data:</strong> ' + data + '<br>' +
             '<strong>Horário:</strong> ' + hora;
 
-        document.getElementById('detalhesReservaModal').dataset.reservaId = reservaId;
-        document.getElementById('detalhesReservaModal').dataset.livroId = livroId;
-        document.getElementById('detalhesReservaModal').style.display = 'flex';
+        renderizarQrReserva({ reservaId, livroId, data, hora, titulo });
+
+        const modalDetalhes = document.getElementById('detalhesReservaModal');
+        modalDetalhes.dataset.reservaId = reservaId;
+        modalDetalhes.dataset.livroId = livroId;
+        setModalVisible('detalhesReservaModal', true);
     }
 
     function fecharDetalhesReserva() {
-        document.getElementById('detalhesReservaModal').style.display = 'none';
+        limparQrReserva();
+        setModalVisible('detalhesReservaModal', false);
     }
 
     function abrirConfirmacaoCancelamento() {
-        document.getElementById('cancelarReservaModal').style.display = 'flex';
+        setModalVisible('cancelarReservaModal', true);
     }
 
     function fecharModalCancelamento() {
-        document.getElementById('cancelarReservaModal').style.display = 'none';
+        setModalVisible('cancelarReservaModal', false);
     }
 
     function ativarAba(tabName) {
@@ -580,9 +689,11 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
 
     function abrirCalendario(livroId) {
         window.livroSelecionado = livroId;
+        resetarInputsReserva();
+
         const livro = livrosData.find(item => Number(item.id) === Number(livroId));
         atualizarStatusDisponibilidade(livro);
-        document.getElementById('calendarioModal').style.display = 'block';
+        setModalVisible('calendarioModal', true, 'block');
 
         const picker = inicializarCalendario();
         setTimeout(() => {
@@ -593,7 +704,8 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
     }
 
     function fecharCalendario() {
-        document.getElementById('calendarioModal').style.display = 'none';
+        setModalVisible('calendarioModal', false, 'block');
+        resetarInputsReserva();
     }
 
     function abrirModalConfirmacao() {
@@ -616,12 +728,12 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
             return;
         }
 
-        document.getElementById('calendarioModal').style.display = 'none';
-        document.getElementById('modalConfirmacao').style.display = 'flex';
+        setModalVisible('calendarioModal', false, 'block');
+        setModalVisible('modalConfirmacao', true);
     }
 
     function fecharModalConfirmacao() {
-        document.getElementById('modalConfirmacao').style.display = 'none';
+        setModalVisible('modalConfirmacao', false);
     }
 
     function confirmarReserva() {
@@ -646,7 +758,8 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
                     livroAtual.quantidade = Math.max(0, Number(livroAtual.quantidade || 0) - 1);
                 }
                 recarregarLivrosAlugados();
-                document.getElementById('modalSucesso').style.display = 'flex';
+                resetarModalSucesso();
+                setModalVisible('modalSucesso', true);
                 return;
             }
 
@@ -704,9 +817,10 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
                     livroAtual.quantidade = Number(livroAtual.quantidade || 0) + 1;
                 }
                 recarregarLivrosAlugados();
-                document.getElementById('modalSucesso').querySelector('h3').textContent = 'Reserva cancelada!';
-                document.getElementById('modalSucesso').querySelector('p').textContent = 'Seu livro voltou ao estoque e a reserva foi removida.';
-                document.getElementById('modalSucesso').style.display = 'flex';
+                const modalSucesso = document.getElementById('modalSucesso');
+                modalSucesso.querySelector('h3').textContent = 'Reserva cancelada!';
+                modalSucesso.querySelector('p').textContent = 'Seu livro voltou ao estoque e a reserva foi removida.';
+                setModalVisible('modalSucesso', true);
                 return;
             }
 
@@ -718,10 +832,8 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
     }
 
     function fecharModalSucesso() {
-        const modalSucesso = document.getElementById('modalSucesso');
-        modalSucesso.querySelector('h3').textContent = 'Reserva concluída!';
-        modalSucesso.querySelector('p').textContent = 'Seu processo foi finalizado com sucesso.';
-        modalSucesso.style.display = 'none';
+        resetarModalSucesso();
+        setModalVisible('modalSucesso', false);
     }
 </script>
 
