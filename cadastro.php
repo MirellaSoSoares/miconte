@@ -1,5 +1,4 @@
-<?php 
-include 'header.php'; 
+<?php
 include 'miconn.php';
 ?>
 
@@ -19,7 +18,6 @@ include 'miconn.php';
     </form>
 </div>
 
-<?php include 'footer.php'; ?>
 
 <?php
 if ($_SERVER["REQUEST_METHOD"] == "POST") {

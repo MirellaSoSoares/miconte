@@ -15,10 +15,15 @@ $livro = null;
 $livroId = $_POST['id'] ?? $_GET['id'] ?? null;
 if ($livroId !== null) {
     $id = (int) $livroId;
-    $stmt = $db->prepare("SELECT id, titulo, autor, capa, sinopse, quantidade FROM livros WHERE id = :id");
+    $stmt = $db->prepare("SELECT id, titulo, autor, capa, sinopse, quantidade, generos FROM livros WHERE id = :id");
     $stmt->bindParam(':id', $id, PDO::PARAM_INT);
     $stmt->execute();
     $livro = $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+$generoLivro = 'Romance';
+if (!empty($livro['generos'])) {
+    $generoLivro = trim((string) $livro['generos']);
 }
 ?>
 
@@ -29,55 +34,38 @@ if ($livroId !== null) {
     <title><?php echo $livro ? $livro['titulo'] : 'Sinopse'; ?></title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="css/aluno.css">
-    <style>
-        /* Top bar specific to sinopse page */
-        .sinopse-topbar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 56px;
-            background: #722f37;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
-        }
-        .sinopse-topbar h1 {
-            margin: 0;
-            color: #fff;
-            font-size: 20px;
-            font-weight: 700;
-            letter-spacing: 0.02em;
-        }
-        /* ensure page content isn't hidden behind the fixed bar */
-        .sinopse-container, .app-shell, body {
-            padding-top: 72px;
-        }
-        /* smaller screens: reduce padding */
-        @media (max-width: 600px) {
-            .sinopse-topbar { height: 48px; }
-            .sinopse-topbar h1 { font-size: 16px; }
-            .sinopse-container, .app-shell, body { padding-top: 64px; }
-        }
-    </style>
 </head>
-<body>
-    <div class="sinopse-topbar" role="banner"><h1>Sinopse</h1></div>
-
-    <div class="sinopse-container">
+<body class="sinopse-page">
+    <div class="sinopse-shell">
         <?php if ($livro): ?>
             <div class="sinopse-card">
-                <a href="aluno.php?tab=<?php echo urlencode($tabAtual); ?>" class="voltar">←</a>
-                <img src="imagens/<?php echo $livro['capa']; ?>" alt="Capa do livro">
-                <h2><?php echo strtoupper($livro['titulo']); ?></h2>
-                <div class="autor"><?php echo $livro['autor']; ?></div>
-                <p><?php echo nl2br($livro['sinopse']); ?></p>
-                <button type="button" onclick="abrirCalendario(<?php echo $livro['id']; ?>)">Verificar disponibilidade</button>
+                <a href="aluno.php?tab=<?php echo urlencode($tabAtual); ?>" class="sinopse-voltar" aria-label="Voltar para a página anterior">←</a>
+
+                <div class="sinopse-header">
+                    <h1><?php echo htmlspecialchars($livro['titulo']); ?></h1>
+                </div>
+
+                <div class="sinopse-content">
+                    <div class="sinopse-cover-wrap">
+                        <img src="imagens/<?php echo htmlspecialchars($livro['capa']); ?>" alt="Capa do livro <?php echo htmlspecialchars($livro['titulo']); ?>">
+                    </div>
+
+                    <div class="sinopse-body">
+                        <div class="sinopse-meta">
+                            <span class="sinopse-autor"><?php echo htmlspecialchars($livro['autor']); ?></span>
+                            <span class="sinopse-genre-tag"><?php echo htmlspecialchars($generoLivro); ?></span>
+                        </div>
+
+                        <p><?php echo nl2br(htmlspecialchars($livro['sinopse'])); ?></p>
+
+                        <div class="sinopse-actions">
+                            <button type="button" class="btn btn-primary" onclick="abrirCalendario(<?php echo (int) $livro['id']; ?>)">Verificar disponibilidade</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         <?php else: ?>
-            <p>Livro não encontrado.</p>
+            <div class="empty-state">Livro não encontrado.</div>
         <?php endif; ?>
     </div>
 
@@ -125,10 +113,6 @@ if ($livroId !== null) {
             </div>
         </div>
     </div>
-
-    <footer>
-        &copy; <?php echo date("Y"); ?> Biblioteca Escolar - Todos os direitos reservados
-    </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>

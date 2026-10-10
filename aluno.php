@@ -87,10 +87,6 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
 </head>
 <body>
 
-<header class="page-header">
-    <h2>Conheça alguns dos nossos bons livros disponíveis abaixo!</h2>
-</header>
-
 <div class="app-shell">
     <aside class="sidebar">
         <div class="sidebar-header">
@@ -320,8 +316,8 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script>
     const FAVORITES_KEY = 'miconte_favoritos';
     const livrosData = <?php echo json_encode($livros, JSON_UNESCAPED_UNICODE); ?>;
@@ -446,8 +442,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
                 function(date) {
                     return (date.getDay() === 0 || date.getDay() === 6);
                 }
-            ],
-            locale: 'pt'
+            ]
         });
 
         return calendarioPicker;
@@ -558,10 +553,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
 
     function renderizarQrReserva({ reservaId, livroId, data, hora, titulo }) {
         const qrContainer = document.getElementById('reservaQrCode');
-        if (!qrContainer || !window.QRCode) {
-            if (qrContainer) {
-                qrContainer.innerHTML = '<div class="qr-error">QR indisponível</div>';
-            }
+        if (!qrContainer) {
             return;
         }
 
@@ -576,26 +568,23 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
         limparQrReserva();
 
         try {
-            const canvas = document.createElement('canvas');
-            canvas.width = 180;
-            canvas.height = 180;
-            canvas.setAttribute('aria-label', 'Código QR da reserva');
-            qrContainer.appendChild(canvas);
+            if (!window.qrcode) {
+                qrContainer.innerHTML = '<div class="qr-error">QR indisponível</div>';
+                return;
+            }
 
-            QRCode.toCanvas(canvas, payload, {
-                width: 180,
-                margin: 1,
-                color: {
-                    dark: '#1f1f1f',
-                    light: '#ffffff'
-                },
-                errorCorrectionLevel: 'H'
-            }, function (error) {
-                if (error) {
-                    console.error('Erro ao gerar QR da reserva:', error);
-                    qrContainer.innerHTML = '<div class="qr-error">QR indisponível</div>';
-                }
-            });
+            const qr = window.qrcode(0, 'H');
+            qr.addData(payload);
+            qr.make();
+
+            const img = document.createElement('img');
+            img.src = qr.createDataURL(8, 0);
+            img.alt = 'Código QR da reserva';
+            img.width = 180;
+            img.height = 180;
+            img.style.display = 'block';
+            img.style.margin = '0 auto';
+            qrContainer.appendChild(img);
         } catch (error) {
             console.error('Erro ao renderizar QR da reserva:', error);
             qrContainer.innerHTML = '<div class="qr-error">QR indisponível</div>';
@@ -609,10 +598,20 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
         const data = botao.dataset.data || '';
         const hora = botao.dataset.hora || '';
 
+        let dataDevolucao = '';
+        if (data) {
+            const dataObj = new Date(data + 'T00:00:00');
+            if (!Number.isNaN(dataObj.getTime())) {
+                dataObj.setDate(dataObj.getDate() + 25);
+                dataDevolucao = dataObj.toISOString().slice(0, 10);
+            }
+        }
+
         const conteudo = document.getElementById('detalhesReservaConteudo');
         conteudo.innerHTML = '<strong>Livro:</strong> ' + titulo + '<br>' +
             '<strong>Data:</strong> ' + data + '<br>' +
-            '<strong>Horário:</strong> ' + hora;
+            '<strong>Horário:</strong> ' + hora + '<br>' +
+            '<strong>Devolução até:</strong> ' + dataDevolucao;
 
         renderizarQrReserva({ reservaId, livroId, data, hora, titulo });
 
@@ -838,8 +837,4 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
 </script>
 
 </body>
-
-<footer>
-    &copy; <?php echo date("Y"); ?> Biblioteca Escolar - Todos os direitos reservados
-</footer>
 </html>
