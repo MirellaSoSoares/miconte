@@ -2,10 +2,13 @@
 include 'miconn.php';
 session_start();
 
-if (!isset($_SESSION['usuario_id']) || $_SESSION['tipo'] != 'aluno') {
+if (!isset($_SESSION['usuario_id']) || ($_SESSION['tipo'] ?? '') !== 'aluno') {
     header("Location: index.php");
     exit;
 }
+
+$_SESSION['nome'] = $_SESSION['nome'] ?? ($_SESSION['usuario_nome'] ?? 'Aluno');
+$_SESSION['usuario_email'] = $_SESSION['usuario_email'] ?? ($_SESSION['email'] ?? 'email@exemplo.com');
 
 $usuarioNome = $_SESSION['nome'] ?? 'Aluno';
 $usuarioEmail = $_SESSION['usuario_email'] ?? 'email@exemplo.com';
@@ -123,9 +126,15 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
 
     <main class="content">
         <section class="panel active" id="home-panel">
+            <div class="brand-hero brand-hero-simple">
+                <div class="brand-hero-logo">
+                    <img src="imagens/logo_miconte.png" alt="MiConte+">
+                </div>
+            </div>
+
             <div class="book-filters">
                 <div class="search-field search-wide">
-                    <label for="searchLivro">Buscar</label>
+                    <label for="searchLivro" class="search-label">BUSCAR</label>
                     <input type="text" id="searchLivro" placeholder="Nome do livro ou autor">
                 </div>
             </div>

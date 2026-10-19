@@ -28,7 +28,7 @@ html, body {
 body {
     margin: 0;
     font-family: Arial, sans-serif;
-    background: radial-gradient(circle at top left, #fffaf0 0%, var(--bege) 32%, #efe4cc 100%);
+    background: linear-gradient(180deg, #f4edd6 0%, #ece0c0 100%);
     color: var(--texto);
     display: flex;
     flex-direction: column;
@@ -41,10 +41,19 @@ body::before {
     content: "";
     position: fixed;
     inset: 0;
-    background: radial-gradient(circle at 12% 18%, rgba(243, 203, 192, 0.23), transparent 16%),
-                radial-gradient(circle at 85% 12%, rgba(243, 213, 95, 0.14), transparent 18%),
-                linear-gradient(135deg, rgba(255,255,255,0.18), transparent 40%);
+    background:
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.22), transparent 20%),
+        radial-gradient(circle at 80% 30%, rgba(122,113,92,0.08), transparent 18%),
+        linear-gradient(90deg, rgba(255,255,255,0.08), rgba(0,0,0,0.02)),
+        repeating-linear-gradient(
+            0deg,
+            rgba(120, 105, 82, 0.02) 0,
+            rgba(120, 105, 82, 0.02) 1px,
+            transparent 1px,
+            transparent 4px
+        );
     pointer-events: none;
+    opacity: 0.95;
 }
 
 .app-shell {
@@ -75,16 +84,94 @@ body::before {
     border-bottom: 1px solid rgba(255,255,255,0.18);
     margin-bottom: 12px;
     background: rgba(255,255,255,0.02);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.sidebar-header img {
+    display: block;
+    width: 110px;
+    height: auto;
+    filter: drop-shadow(0 8px 18px rgba(0,0,0,0.18));
 }
 
 .sidebar-header h3 {
     margin: 0;
     color: var(--branco);
-    font-size: clamp(1.6rem, 1.8vw, 2.1rem);
+    font-size: clamp(1.2rem, 1.6vw, 1.7rem);
     text-align: center;
     font-weight: 800;
     letter-spacing: -0.06em;
     line-height: 1.1;
+}
+
+.brand-hero {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 4px 0 2px;
+    margin-bottom: 2px;
+    box-shadow: none;
+}
+
+.brand-hero-simple {
+    flex-direction: column;
+    text-align: center;
+}
+
+.brand-hero-logo {
+    flex-shrink: 0;
+    width: 210px;
+    height: 210px;
+    border-radius: 22px;
+    background: transparent;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: none;
+}
+
+.brand-hero-logo img {
+    display: block;
+    width: 180px;
+    height: auto;
+    transform: scale(1.08);
+    transform-origin: center;
+}
+
+.brand-hero-copy {
+    flex: 0 0 auto;
+}
+
+.brand-hero-copy h2 {
+    margin: 0;
+    color: var(--vinho-escuro);
+    font-size: clamp(2.2rem, 4vw, 4.1rem);
+    letter-spacing: -0.08em;
+    font-weight: 700;
+    line-height: 1;
+}
+
+@media (max-width: 640px) {
+    .brand-hero {
+        gap: 10px;
+    }
+
+    .brand-hero-logo {
+        width: 180px;
+        height: 180px;
+    }
+
+    .brand-hero-logo img {
+        width: 150px;
+    }
 }
 
 .nav {
@@ -170,10 +257,29 @@ body::before {
     justify-content: center;
     overflow-y: auto;
     min-height: 0;
+    position: relative;
+}
+
+.content::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
+        repeating-linear-gradient(
+            0deg,
+            rgba(120, 105, 82, 0.02) 0,
+            rgba(120, 105, 82, 0.02) 1px,
+            transparent 1px,
+            transparent 6px
+        );
+    pointer-events: none;
 }
 
 .content .panel {
     min-height: 100%;
+    position: relative;
+    z-index: 1;
 }
 
 .panel {
@@ -198,7 +304,7 @@ body::before {
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
-    margin: 0 auto 18px;
+    margin: 0 auto 12px;
     width: 100%;
     max-width: 860px;
     align-items: flex-end;
@@ -217,11 +323,20 @@ body::before {
 }
 
 .search-field label {
-    font-weight: 700;
-    color: var(--texto-suave);
-    font-size: 0.82rem;
+    display: block;
+    color: #7d685d;
+    font-weight: 800;
+    font-size: 0.78rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+    margin-bottom: 2px;
+}
+
+.search-field input::placeholder {
+    color: rgba(75, 61, 45, 0.7);
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
 }
 
 .search-field input,
@@ -240,6 +355,10 @@ body::before {
     outline: none;
     border-color: rgba(114, 47, 55, 0.42);
     box-shadow: 0 0 0 4px rgba(114, 47, 55, 0.1);
+}
+
+.search-field input::placeholder {
+    color: rgba(75, 61, 45, 0.7);
 }
 
 .genre-filter-bar {

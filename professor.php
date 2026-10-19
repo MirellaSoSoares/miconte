@@ -119,9 +119,30 @@ $alunos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         body {
             font-family: Arial, Helvetica, sans-serif;
-            background: #f5e8d3;
+            background: linear-gradient(180deg, #f4ead8 0%, #f8f2ea 100%);
             min-height: 100vh;
             color: #333;
+            position: relative;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(circle at 20% 20%, rgba(255,255,255,0.22), transparent 20%),
+                radial-gradient(circle at 80% 30%, rgba(122,113,92,0.08), transparent 18%),
+                linear-gradient(90deg, rgba(255,255,255,0.08), rgba(0,0,0,0.02)),
+                repeating-linear-gradient(
+                    0deg,
+                    rgba(120, 105, 82, 0.02) 0,
+                    rgba(120, 105, 82, 0.02) 1px,
+                    transparent 1px,
+                    transparent 4px
+                );
+            pointer-events: none;
+            opacity: 0.95;
+            z-index: 0;
         }
 
         /* =========================
@@ -214,6 +235,8 @@ $alunos = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .content {
             margin-left: 250px;
             padding: 35px;
+            position: relative;
+            z-index: 1;
         }
 
         .top {
