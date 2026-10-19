@@ -114,6 +114,17 @@ if (!empty($livro['generos'])) {
         </div>
     </div>
 
+    <div id="alertaModal" class="alert-modal-overlay">
+        <div class="alert-modal-box">
+            <div class="alert-modal-icon">!</div>
+            <h3 id="alertaModalTitulo">Atenção</h3>
+            <p id="alertaModalMensagem">Mensagem.</p>
+            <div class="alert-modal-actions">
+                <button class="confirm-yes" onclick="fecharAlertaModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
         window.livroSelecionado = <?php echo (int) ($livro['id'] ?? 0); ?>;
@@ -175,6 +186,21 @@ if (!empty($livro['generos'])) {
             atualizarStatusDisponibilidade();
         };
 
+        function mostrarAlertaModal(titulo, mensagem) {
+            const tituloEl = document.getElementById('alertaModalTitulo');
+            const mensagemEl = document.getElementById('alertaModalMensagem');
+            const modal = document.getElementById('alertaModal');
+
+            if (tituloEl) tituloEl.textContent = titulo || 'Atenção';
+            if (mensagemEl) mensagemEl.textContent = mensagem || 'Ocorreu um problema.';
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function fecharAlertaModal() {
+            const modal = document.getElementById('alertaModal');
+            if (modal) modal.style.display = 'none';
+        }
+
         function abrirCalendario(livroId) {
             window.livroSelecionado = livroId;
             document.getElementById('calendarioModal').style.display = 'block';
@@ -202,12 +228,12 @@ if (!empty($livro['generos'])) {
             }
 
             if (!data) {
-                alert('Por favor, selecione uma data antes de confirmar!');
+                mostrarAlertaModal('Data obrigatória', 'Por favor, selecione uma data antes de confirmar!');
                 return;
             }
 
             if (!hora) {
-                alert('Por favor, selecione um horário antes de confirmar!');
+                mostrarAlertaModal('Horário obrigatório', 'Por favor, selecione um horário antes de confirmar!');
                 return;
             }
 
@@ -236,11 +262,11 @@ if (!empty($livro['generos'])) {
                 if (result.trim() === 'OK') {
                     document.getElementById('modalSucesso').style.display = 'block';
                 } else {
-                    alert('Erro ao salvar reserva: ' + result);
+                    mostrarAlertaModal('Reserva não concluída', 'Erro ao salvar reserva: ' + result);
                 }
             })
             .catch(() => {
-                alert('Erro de conexão!');
+                mostrarAlertaModal('Erro de conexão', 'Erro de conexão!');
             });
         }
 

@@ -2,10 +2,13 @@
 include 'miconn.php';
 session_start();
 
-if (!isset($_SESSION['usuario_id']) || $_SESSION['tipo'] != 'aluno') {
+if (!isset($_SESSION['usuario_id']) || ($_SESSION['tipo'] ?? '') !== 'aluno') {
     header("Location: index.php");
     exit;
 }
+
+$_SESSION['nome'] = $_SESSION['nome'] ?? ($_SESSION['usuario_nome'] ?? 'Aluno');
+$_SESSION['usuario_email'] = $_SESSION['usuario_email'] ?? ($_SESSION['email'] ?? 'email@exemplo.com');
 
 $usuarioNome = $_SESSION['nome'] ?? 'Aluno';
 $usuarioEmail = $_SESSION['usuario_email'] ?? 'email@exemplo.com';
@@ -123,9 +126,15 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
 
     <main class="content">
         <section class="panel active" id="home-panel">
+            <div class="brand-hero brand-hero-simple">
+                <div class="brand-hero-logo">
+                    <img src="imagens/logo_miconte.png" alt="MiConte+">
+                </div>
+            </div>
+
             <div class="book-filters">
                 <div class="search-field search-wide">
-                    <label for="searchLivro">Buscar</label>
+                    <label for="searchLivro" class="search-label">BUSCAR</label>
                     <input type="text" id="searchLivro" placeholder="Nome do livro ou autor">
                 </div>
             </div>
@@ -316,6 +325,17 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
     </div>
 </div>
 
+<div id="alertaModal" class="alert-modal-overlay">
+    <div class="alert-modal-box">
+        <div class="alert-modal-icon">!</div>
+        <h3 id="alertaModalTitulo">Atenção</h3>
+        <p id="alertaModalMensagem">Mensagem.</p>
+        <div class="alert-modal-actions">
+            <button class="confirm-yes" onclick="fecharAlertaModal()">OK</button>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script>
@@ -452,6 +472,21 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
         const modal = document.getElementById(modalId);
         if (!modal) return;
         modal.style.display = visible ? displayMode : 'none';
+    }
+
+    function mostrarAlertaModal(titulo, mensagem) {
+        const tituloEl = document.getElementById('alertaModalTitulo');
+        const mensagemEl = document.getElementById('alertaModalMensagem');
+        const modal = document.getElementById('alertaModal');
+
+        if (tituloEl) tituloEl.textContent = titulo || 'Atenção';
+        if (mensagemEl) mensagemEl.textContent = mensagem || 'Ocorreu um problema.';
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function fecharAlertaModal() {
+        const modal = document.getElementById('alertaModal');
+        if (modal) modal.style.display = 'none';
     }
 
     function resetarInputsReserva() {
@@ -718,12 +753,12 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
         }
 
         if (!data) {
-            alert('Por favor, selecione uma data antes de confirmar.');
+            mostrarAlertaModal('Data obrigatória', 'Por favor, selecione uma data antes de confirmar.');
             return;
         }
 
         if (!hora) {
-            alert('Por favor, selecione um horário antes de confirmar.');
+            mostrarAlertaModal('Horário obrigatório', 'Por favor, selecione um horário antes de confirmar.');
             return;
         }
 
@@ -763,29 +798,29 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
             }
 
             if (mensagem === 'Você já reservou este livro') {
-                alert('Você já reservou este livro. Não é possível alocar o mesmo exemplar novamente.');
+                mostrarAlertaModal('Reserva duplicada', 'Você já reservou este livro. Não é possível alocar o mesmo exemplar novamente.');
                 return;
             }
 
             if (mensagem === 'Você já reservou este livro para essa data e horário') {
-                alert('Essa data e horário já estão reservados para você neste livro.');
+                mostrarAlertaModal('Horário indisponível', 'Essa data e horário já estão reservados para você neste livro.');
                 return;
             }
 
             if (mensagem === 'Limite de 3 livros por usuário atingido') {
-                alert('Você já atingiu o limite de 3 livros reservados.');
+                mostrarAlertaModal('Limite atingido', 'Você já atingiu o limite de 3 livros reservados.');
                 return;
             }
 
             if (mensagem === 'Livro indisponível') {
-                alert('Este livro não está mais disponível para locação no momento.');
+                mostrarAlertaModal('Livro indisponível', 'Este livro não está mais disponível para locação no momento.');
                 return;
             }
 
-            alert('Não foi possível concluir a reserva. Tente novamente.');
+            mostrarAlertaModal('Não foi possível concluir', 'Não foi possível concluir a reserva. Tente novamente.');
         })
         .catch(() => {
-            alert('Erro de conexão. Tente novamente em alguns instantes.');
+            mostrarAlertaModal('Erro de conexão', 'Erro de conexão. Tente novamente em alguns instantes.');
         });
     }
 
@@ -795,7 +830,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
         const livroId = Number(modal.dataset.livroId || 0);
 
         if (!reservaId) {
-            alert('Não foi possível identificar a reserva para cancelar.');
+            mostrarAlertaModal('Reserva inválida', 'Não foi possível identificar a reserva para cancelar.');
             return;
         }
 
@@ -823,10 +858,10 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'alugados') {
                 return;
             }
 
-            alert(mensagem || 'Não foi possível cancelar esta reserva.');
+            mostrarAlertaModal('Cancelamento não concluído', mensagem || 'Não foi possível cancelar esta reserva.');
         })
         .catch(() => {
-            alert('Erro de conexão. Tente novamente em alguns instantes.');
+            mostrarAlertaModal('Erro de conexão', 'Erro de conexão. Tente novamente em alguns instantes.');
         });
     }
 
