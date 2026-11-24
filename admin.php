@@ -1,17 +1,25 @@
 <?php
+declare(strict_types=1);
 session_start();
-include 'miconn.php';
+require_once __DIR__ . '/miconn.php';
 
 if (!isset($_SESSION['usuario_id']) || ($_SESSION['tipo'] ?? '') !== 'admin') {
     header('Location: index.php');
     exit;
 }
 
-$adminNome = $_SESSION['usuario_nome'] ?? 'Administrador';
+if (empty($_SESSION['csrf_admin'])) {
+    $_SESSION['csrf_admin'] = bin2hex(random_bytes(32));
+}
+
+$adminNome = (string)($_SESSION['usuario_nome'] ?? 'Administrador');
 $mensagem = '';
 $tipoMensagem = '';
-
 $usuariosInternos = [];
+$livros = [];
+$reservas = [];
+$totalLivros = 0;
+$totalReservas = 0;
 $config = [
     'prazo_emprestimo' => 7,
     'dias_bloqueio' => 3,
@@ -19,98 +27,106 @@ $config = [
 ];
 
 try {
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'toggle_status') {
-        $usuarioId = (int)($_POST['usuario_id'] ?? 0);
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $token = (string)($_POST['csrf_token'] ?? '');
+        if (!hash_equals((string)$_SESSION['csrf_admin'], $token)) {
+            throw new RuntimeException('Sessão de segurança inválida. Atualize a página e tente novamente.');
+        }
 
-        if ($usuarioId > 0 && $usuarioId !== (int)($_SESSION['usuario_id'] ?? 0)) {
-            $stmt = $db->prepare("SELECT id, status FROM usuarios WHERE id = ? AND tipo IN ('admin', 'professor') LIMIT 1");
-            $stmt->execute([$usuarioId]);
-            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+        $acao = (string)($_POST['acao'] ?? '');
+        if ($acao === 'cadastrar_livro') {
+            $titulo = trim((string)($_POST['titulo'] ?? ''));
+            $autor = trim((string)($_POST['autor'] ?? ''));
+            $capa = trim((string)($_POST['capa'] ?? ''));
+            $sinopse = trim((string)($_POST['sinopse'] ?? ''));
+            $quantidade = filter_var($_POST['quantidade'] ?? null, FILTER_VALIDATE_INT);
 
-            if ($usuario) {
-                $novoStatus = ($usuario['status'] ?? 'ativo') === 'ativo' ? 'inativo' : 'ativo';
-
-                $update = $db->prepare("UPDATE usuarios SET status = ? WHERE id = ?");
-                $update->execute([$novoStatus, $usuarioId]);
-
-                $mensagem = 'Status do usuário atualizado com sucesso.';
-                $tipoMensagem = 'sucesso';
+            if ($titulo === '' || $autor === '' || $quantidade === false || $quantidade < 0 || mb_strlen($titulo) > 255 || mb_strlen($autor) > 255 || mb_strlen($capa) > 255) {
+                throw new InvalidArgumentException('Confira os campos do livro. Título, autor e quantidade válida são obrigatórios.');
             }
+            $stmt = $db->prepare('INSERT INTO livros (titulo, autor, capa, sinopse, quantidade) VALUES (?, ?, ?, ?, ?)');
+            $stmt->execute([$titulo, $autor, $capa, $sinopse, $quantidade]);
+            $mensagem = 'Livro cadastrado com sucesso.';
+            $tipoMensagem = 'sucesso';
+        } elseif ($acao === 'editar_livro') {
+            $id = filter_var($_POST['id'] ?? null, FILTER_VALIDATE_INT);
+            $titulo = trim((string)($_POST['titulo'] ?? ''));
+            $autor = trim((string)($_POST['autor'] ?? ''));
+            $capa = trim((string)($_POST['capa'] ?? ''));
+            $sinopse = trim((string)($_POST['sinopse'] ?? ''));
+            $quantidade = filter_var($_POST['quantidade'] ?? null, FILTER_VALIDATE_INT);
+
+            if (!$id || $titulo === '' || $autor === '' || $quantidade === false || $quantidade < 0 || mb_strlen($titulo) > 255 || mb_strlen($autor) > 255 || mb_strlen($capa) > 255) {
+                throw new InvalidArgumentException('Confira os dados informados para editar o livro.');
+            }
+            $stmt = $db->prepare('UPDATE livros SET titulo = ?, autor = ?, capa = ?, sinopse = ?, quantidade = ? WHERE id = ?');
+            $stmt->execute([$titulo, $autor, $capa, $sinopse, $quantidade, $id]);
+            $mensagem = $stmt->rowCount() ? 'Livro atualizado com sucesso.' : 'Nenhuma alteração foi necessária ou o livro não foi encontrado.';
+            $tipoMensagem = 'sucesso';
+        } elseif ($acao === 'excluir_livro') {
+            $id = filter_var($_POST['id'] ?? null, FILTER_VALIDATE_INT);
+            if (!$id) {
+                throw new InvalidArgumentException('Identificador de livro inválido.');
+            }
+            // Não exclui livros associados a reservas: preserva o histórico e evita perda de integridade.
+            $check = $db->prepare('SELECT COUNT(*) FROM reservas WHERE livro_id = ?');
+            $check->execute([$id]);
+            if ((int)$check->fetchColumn() > 0) {
+                throw new RuntimeException('Este livro possui reservas vinculadas e não pode ser excluído.');
+            }
+            $stmt = $db->prepare('DELETE FROM livros WHERE id = ?');
+            $stmt->execute([$id]);
+            $mensagem = $stmt->rowCount() ? 'Livro excluído.' : 'Livro não encontrado.';
+            $tipoMensagem = 'sucesso';
+        } elseif ($acao === 'salvar_config' || $acao === 'toggle_status') {
+            // Desativado intencionalmente: a tabela/coluna necessária não existe no banco atual.
+            throw new RuntimeException('Esta operação está temporariamente desativada para não alterar a estrutura do banco de dados.');
         }
     }
 
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['acao'] ?? '') === 'salvar_config') {
-        $prazo = (int)($_POST['prazo_emprestimo'] ?? 7);
-        $diasBloqueio = (int)($_POST['dias_bloqueio'] ?? 3);
-        $mensagemSistema = trim((string)($_POST['mensagem_sistema'] ?? 'Sistema em funcionamento.'));
+    $usuariosInternos = $db->query("SELECT id, nome, email, tipo FROM usuarios WHERE tipo IN ('admin', 'professor') ORDER BY nome ASC")->fetchAll(PDO::FETCH_ASSOC);
+    $livros = $db->query('SELECT id, titulo, autor, capa, sinopse, quantidade FROM livros ORDER BY titulo ASC')->fetchAll(PDO::FETCH_ASSOC);
+    $totalLivros = (int)$db->query('SELECT COUNT(*) FROM livros')->fetchColumn();
+    $totalReservas = (int)$db->query('SELECT COUNT(*) FROM reservas')->fetchColumn();
 
-        if ($mensagemSistema === '') {
-            $mensagemSistema = 'Sistema em funcionamento.';
-        }
-
-        try {
-            $db->query('SELECT 1 FROM configuracoes LIMIT 1');
-        } catch (Exception $e) {
-            $db->exec(
-                "CREATE TABLE IF NOT EXISTS configuracoes (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    prazo_emprestimo INT NOT NULL DEFAULT 7,
-                    dias_bloqueio INT NOT NULL DEFAULT 3,
-                    mensagem_sistema VARCHAR(255) NOT NULL DEFAULT 'Sistema em funcionamento.',
-                    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-                )"
-            );
-        }
-
-        $verifica = $db->query('SELECT id FROM configuracoes LIMIT 1')->fetch(PDO::FETCH_ASSOC);
-
-        if ($verifica) {
-            $stmt = $db->prepare(
-                'UPDATE configuracoes SET prazo_emprestimo = ?, dias_bloqueio = ?, mensagem_sistema = ?, atualizado_em = NOW() WHERE id = ?'
-            );
-            $stmt->execute([$prazo, $diasBloqueio, $mensagemSistema, $verifica['id']]);
-        } else {
-            $stmt = $db->prepare(
-                'INSERT INTO configuracoes (prazo_emprestimo, dias_bloqueio, mensagem_sistema) VALUES (?, ?, ?)'
-            );
-            $stmt->execute([$prazo, $diasBloqueio, $mensagemSistema]);
-        }
-
-        $config['prazo_emprestimo'] = $prazo;
-        $config['dias_bloqueio'] = $diasBloqueio;
-        $config['mensagem_sistema'] = $mensagemSistema;
-
-        $mensagem = 'Configurações salvas com sucesso.';
-        $tipoMensagem = 'sucesso';
-    }
-
+    // Leitura opcional. Não cria tabela nem grava configuração.
     try {
-        $stmt = $db->query("SELECT id, nome, email, tipo, status FROM usuarios WHERE tipo IN ('admin', 'professor') ORDER BY nome ASC");
-        $usuariosInternos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (Exception $e) {
-        $stmt = $db->query("SELECT id, nome, email, tipo FROM usuarios WHERE tipo IN ('admin', 'professor') ORDER BY nome ASC");
-        $usuariosInternos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    try {
-        $stmt = $db->query('SELECT prazo_emprestimo, dias_bloqueio, mensagem_sistema FROM configuracoes ORDER BY id DESC LIMIT 1');
-        $configDb = $stmt->fetch(PDO::FETCH_ASSOC);
-
+        $configDb = $db->query('SELECT prazo_emprestimo, dias_bloqueio, mensagem_sistema FROM configuracoes ORDER BY id DESC LIMIT 1')->fetch(PDO::FETCH_ASSOC);
         if ($configDb) {
-            $config['prazo_emprestimo'] = (int)$configDb['prazo_emprestimo'];
-            $config['dias_bloqueio'] = (int)$configDb['dias_bloqueio'];
-            $config['mensagem_sistema'] = $configDb['mensagem_sistema'];
+            $config = [
+                'prazo_emprestimo' => (int)$configDb['prazo_emprestimo'],
+                'dias_bloqueio' => (int)$configDb['dias_bloqueio'],
+                'mensagem_sistema' => (string)$configDb['mensagem_sistema']
+            ];
         }
-    } catch (Exception $e) {
-        $config = [
-            'prazo_emprestimo' => 7,
-            'dias_bloqueio' => 3,
-            'mensagem_sistema' => 'Sistema em funcionamento.'
-        ];
+    } catch (Throwable $ignored) {
+        // A tabela não existe: mantém valores de exibição padrão sem alterar o banco.
     }
-} catch (Exception $e) {
-    $mensagem = 'Ocorreu um erro ao processar a operação.';
+
+    // Consulta compatível com as colunas já verificadas em usuarios, livros e reservas.
+    try {
+        $reservas = $db->query(
+            "SELECT r.id, r.aluno_email, u.nome, l.titulo, r.data, r.hora, r.criado_em
+             FROM reservas r
+             LEFT JOIN usuarios u ON r.aluno_id = u.id
+             LEFT JOIN livros l ON r.livro_id = l.id
+             ORDER BY r.data ASC, r.hora ASC"
+        )->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $ignored) {
+        $reservas = [];
+    }
+} catch (Throwable $e) {
+    $mensagem = $e instanceof InvalidArgumentException || $e instanceof RuntimeException
+        ? $e->getMessage()
+        : 'Não foi possível concluir a operação. Verifique a conexão e os dados.';
     $tipoMensagem = 'erro';
+    // Recarrega somente dados de leitura para a página não ficar vazia após erro de formulário.
+    try {
+        $usuariosInternos = $db->query("SELECT id, nome, email, tipo FROM usuarios WHERE tipo IN ('admin', 'professor') ORDER BY nome ASC")->fetchAll(PDO::FETCH_ASSOC);
+        $livros = $db->query('SELECT id, titulo, autor, capa, sinopse, quantidade FROM livros ORDER BY titulo ASC')->fetchAll(PDO::FETCH_ASSOC);
+        $totalLivros = (int)$db->query('SELECT COUNT(*) FROM livros')->fetchColumn();
+        $totalReservas = (int)$db->query('SELECT COUNT(*) FROM reservas')->fetchColumn();
+    } catch (Throwable $ignored) {}
 }
 ?>
 
@@ -521,9 +537,11 @@ try {
 
             <nav class="nav">
                 <a href="#dashboard" class="active">Dashboard</a>
-                <a href="#usuarios">Usuários internos</a>
-                <a href="#configuracoes">Configurações</a>
-                <a href="#seguranca">Segurança</a>
+                <a href="#livros">Livros</a>
+                <a href="#reservas">Reservas</a>
+                <a href="#usuarios">Usu├írios internos</a>
+                <a href="#configuracoes">Configura├º├Áes</a>
+                <a href="#seguranca">Seguran├ºa</a>
             </nav>
 
             <div class="logout-box">
@@ -546,11 +564,21 @@ try {
             <section id="dashboard">
                 <div class="dashboard-grid">
                     <div class="card">
+                        <div class="label">Livros cadastrados</div>
+                        <div class="valor"><?php echo (int)$totalLivros; ?></div>
+                        <div class="sub">Registros na biblioteca.</div>
+                    </div>
+                    <div class="card">
                         <div class="label">Sistema</div>
                         <div class="valor">Online</div>
-                        <div class="sub">Plataforma disponível para uso.</div>
+                        <div class="sub">Plataforma dispon├¡vel para uso.</div>
                     </div>
 
+                    <div class="card">
+                        <div class="label">Reservas</div>
+                        <div class="valor"><?php echo (int)$totalReservas; ?></div>
+                        <div class="sub">Reservas registradas.</div>
+                    </div>
                     <div class="card">
                         <div class="label">Acesso administrativo</div>
                         <div class="valor">Ativo</div>
@@ -558,21 +586,100 @@ try {
                     </div>
 
                     <div class="card">
-                        <div class="label">Prazo de empréstimo</div>
+                        <div class="label">Prazo de empr├®stimo</div>
                         <div class="valor"><?php echo (int)$config['prazo_emprestimo']; ?> dias</div>
-                        <div class="sub">Configuração atual do sistema.</div>
+                        <div class="sub">Configura├º├úo atual do sistema.</div>
                     </div>
 
                     <div class="card">
                         <div class="label">Mensagem do sistema</div>
                         <div class="valor" style="font-size:1.1rem;"><?php echo htmlspecialchars($config['mensagem_sistema']); ?></div>
-                        <div class="sub">Mensagem exibida aos usuários.</div>
+                        <div class="sub">Mensagem exibida aos usu├írios.</div>
                     </div>
                 </div>
             </section>
 
+            <section id="livros" class="panel">
+                <h3>Gerenciamento de livros</h3>
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_admin'], ENT_QUOTES, 'UTF-8'); ?>">
+                    <input type="hidden" name="acao" value="cadastrar_livro">
+                    <div class="form-grid">
+                        <div class="campo"><label for="titulo">Título</label><input id="titulo" name="titulo" maxlength="255" required></div>
+                        <div class="campo"><label for="autor">Autor</label><input id="autor" name="autor" maxlength="255" required></div>
+                        <div class="campo"><label for="capa">Caminho da capa (opcional)</label><input id="capa" name="capa" maxlength="255"></div>
+                        <div class="campo"><label for="quantidade">Quantidade</label><input id="quantidade" name="quantidade" type="number" min="0" max="100000" value="1" required></div>
+                    </div>
+                    <div class="campo" style="margin-top:16px;"><label for="sinopse">Sinopse</label><textarea id="sinopse" name="sinopse"></textarea></div>
+                    <div class="actions"><button class="btn primary" type="submit">Cadastrar livro</button></div>
+                </form>
+
+                <h3 style="margin-top:28px;">Livros cadastrados</h3>
+                <div style="overflow-x:auto;">
+                <table>
+                    <thead><tr><th>ID</th><th>Título</th><th>Autor</th><th>Quantidade</th><th>Editar</th><th>Excluir</th></tr></thead>
+                    <tbody>
+                    <?php if ($livros): foreach ($livros as $livro): ?>
+                        <tr>
+                            <td><?php echo (int)$livro['id']; ?></td>
+                            <td><?php echo htmlspecialchars($livro['titulo'], ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars($livro['autor'], ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo (int)$livro['quantidade']; ?></td>
+                            <td>
+                                <form method="POST">
+                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_admin'], ENT_QUOTES, 'UTF-8'); ?>">
+                                    <input type="hidden" name="acao" value="editar_livro">
+                                    <input type="hidden" name="id" value="<?php echo (int)$livro['id']; ?>">
+                                    <input name="titulo" aria-label="Título" value="<?php echo htmlspecialchars($livro['titulo'], ENT_QUOTES, 'UTF-8'); ?>" maxlength="255" required>
+                                    <input name="autor" aria-label="Autor" value="<?php echo htmlspecialchars($livro['autor'], ENT_QUOTES, 'UTF-8'); ?>" maxlength="255" required>
+                                    <input name="capa" aria-label="Capa" value="<?php echo htmlspecialchars($livro['capa'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" maxlength="255">
+                                    <input name="quantidade" aria-label="Quantidade" type="number" min="0" max="100000" value="<?php echo (int)$livro['quantidade']; ?>" required>
+                                    <textarea name="sinopse" aria-label="Sinopse"><?php echo htmlspecialchars($livro['sinopse'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
+                                    <button class="btn secondary" type="submit">Salvar edição</button>
+                                </form>
+                            </td>
+                            <td>
+                                <form method="POST" onsubmit="return confirm('Confirma a exclusão deste livro?');">
+                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_admin'], ENT_QUOTES, 'UTF-8'); ?>">
+                                    <input type="hidden" name="acao" value="excluir_livro">
+                                    <input type="hidden" name="id" value="<?php echo (int)$livro['id']; ?>">
+                                    <button class="btn warning" type="submit">Excluir</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach; else: ?>
+                        <tr><td colspan="6" style="text-align:center;">Nenhum livro cadastrado.</td></tr>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+                </div>
+            </section>
+
+            <section id="reservas" class="panel">
+                <h3>Reservas</h3>
+                <div style="overflow-x:auto;">
+                <table>
+                    <thead><tr><th>Aluno</th><th>E-mail</th><th>Livro</th><th>Data</th><th>Horário</th><th>Criada em</th></tr></thead>
+                    <tbody>
+                    <?php if ($reservas): foreach ($reservas as $reserva): ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($reserva['nome'] ?? 'Aluno', ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars($reserva['aluno_email'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars($reserva['titulo'] ?? 'Livro', ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars($reserva['data'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars($reserva['hora'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars($reserva['criado_em'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+                        </tr>
+                    <?php endforeach; else: ?>
+                        <tr><td colspan="6" style="text-align:center;">Nenhuma reserva encontrada.</td></tr>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+                </div>
+            </section>
+
             <section id="usuarios" class="panel">
-                <h3>Usuários internos</h3>
+                <h3>Usu├írios internos</h3>
 
                 <table>
                     <thead>
@@ -581,40 +688,21 @@ try {
                             <th>E-mail</th>
                             <th>Tipo</th>
                             <th>Status</th>
-                            <th>Ação</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (!empty($usuariosInternos)): ?>
                             <?php foreach ($usuariosInternos as $usuario): ?>
-                                <?php
-                                    $status = $usuario['status'] ?? 'ativo';
-                                    $statusTexto = $status === 'inativo' ? 'Inativo' : 'Ativo';
-                                    $statusClass = $status === 'inativo' ? 'inativo' : 'ativo';
-                                ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($usuario['nome']); ?></td>
                                     <td><?php echo htmlspecialchars($usuario['email']); ?></td>
                                     <td><?php echo htmlspecialchars(ucfirst($usuario['tipo'])); ?></td>
-                                    <td><span class="badge <?php echo $statusClass; ?>"><?php echo $statusTexto; ?></span></td>
-                                    <td>
-                                        <?php if ((int)($usuario['id'] ?? 0) !== (int)($_SESSION['usuario_id'] ?? 0)): ?>
-                                            <form method="POST" style="display:inline;">
-                                                <input type="hidden" name="acao" value="toggle_status">
-                                                <input type="hidden" name="usuario_id" value="<?php echo (int)$usuario['id']; ?>">
-                                                <button type="submit" class="btn <?php echo $status === 'ativo' ? 'warning' : 'secondary'; ?>">
-                                                    <?php echo $status === 'ativo' ? 'Desativar' : 'Ativar'; ?>
-                                                </button>
-                                            </form>
-                                        <?php else: ?>
-                                            <span style="color:#666; font-weight:700;">Você</span>
-                                        <?php endif; ?>
-                                    </td>
+                                    <td><span class="badge">Não gerenciado</span></td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="5" style="text-align:center; color:#666;">Nenhum usuário interno encontrado.</td>
+                                <td colspan="4" style="text-align:center; color:#666;">Nenhum usuário interno encontrado.</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
@@ -623,50 +711,44 @@ try {
 
             <section id="configuracoes" class="panel">
                 <h3>Configurações gerais</h3>
-
-                <form method="POST">
-                    <input type="hidden" name="acao" value="salvar_config">
-
-                    <div class="form-grid">
-                        <div class="campo">
-                            <label for="prazo_emprestimo">Prazo de empréstimo (dias)</label>
-                            <input type="number" id="prazo_emprestimo" name="prazo_emprestimo" min="1" max="30" value="<?php echo (int)$config['prazo_emprestimo']; ?>">
-                        </div>
-
-                        <div class="campo">
-                            <label for="dias_bloqueio">Dias de bloqueio</label>
-                            <input type="number" id="dias_bloqueio" name="dias_bloqueio" min="1" max="30" value="<?php echo (int)$config['dias_bloqueio']; ?>">
-                        </div>
+                <div class="alerta erro">
+                    As configurações estão em modo de consulta. A tabela <code>configuracoes</code>
+                    não existe no banco atual; por segurança, este painel não a cria nem altera o banco.
+                    A ativação do salvamento exige uma migração autorizada.
+                </div>
+                <div class="form-grid">
+                    <div class="campo">
+                        <label>Prazo de empréstimo (dias)</label>
+                        <input type="number" value="<?php echo (int)$config['prazo_emprestimo']; ?>" disabled>
                     </div>
-
-                    <div class="campo" style="margin-top:20px;">
-                        <label for="mensagem_sistema">Mensagem do sistema</label>
-                        <textarea id="mensagem_sistema" name="mensagem_sistema"><?php echo htmlspecialchars($config['mensagem_sistema']); ?></textarea>
+                    <div class="campo">
+                        <label>Dias de bloqueio</label>
+                        <input type="number" value="<?php echo (int)$config['dias_bloqueio']; ?>" disabled>
                     </div>
-
-                    <div class="actions">
-                        <button type="submit" class="btn primary">Salvar configurações</button>
-                    </div>
-                </form>
+                </div>
+                <div class="campo" style="margin-top:20px;">
+                    <label>Mensagem do sistema</label>
+                    <textarea disabled><?php echo htmlspecialchars($config['mensagem_sistema'], ENT_QUOTES, 'UTF-8'); ?></textarea>
+                </div>
             </section>
 
             <section id="seguranca" class="panel">
-                <h3>Segurança</h3>
+                <h3>Seguran├ºa</h3>
 
                 <div class="seguranca-list">
                     <div class="seguranca-item">
                         <h4>Contas internas</h4>
-                        <p>Gerencie a ativação ou bloqueio de contas administrativas e de bibliotecários.</p>
+                        <p>Gerencie a ativa├º├úo ou bloqueio de contas administrativas e de bibliotec├írios.</p>
                     </div>
 
                     <div class="seguranca-item">
                         <h4>Acesso administrativo</h4>
-                        <p>Restrinja ações sensíveis ao nível do administrador do sistema.</p>
+                        <p>Restrinja a├º├Áes sens├¡veis ao n├¡vel do administrador do sistema.</p>
                     </div>
 
                     <div class="seguranca-item">
-                        <h4>Manutenção</h4>
-                        <p>Use esta área para manter a plataforma estável e segura.</p>
+                        <h4>Manuten├º├úo</h4>
+                        <p>Use esta ├írea para manter a plataforma est├ível e segura.</p>
                     </div>
                 </div>
             </section>
